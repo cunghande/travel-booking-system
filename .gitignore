@@ -1,0 +1,55 @@
+# ============================================================
+# Travel Booking System — .gitignore
+# ============================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.whl
+
+# --- Virtual Environment ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Environment Variables ---
+.env
+.env.local
+.env.production
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Testing ---
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# --- Docker ---
+docker/volumes/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Misc ---
+*.bak
+*.tmp
