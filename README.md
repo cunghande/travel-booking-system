@@ -90,6 +90,20 @@ docker compose exec api python -m app.infrastructure.db.seed
 | POST | `/api/v1/users/{id}/roles` | Admin | Assign role to user |
 | DELETE | `/api/v1/users/{id}/roles` | Admin | Remove role from user |
 
+### Tour Management (Week 2)
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| POST | `/api/v1/tours` | Staff/Admin | Create tour with itineraries & activities |
+| GET | `/api/v1/tours` | Public | List published tours (pagination, search, filter) |
+| GET | `/api/v1/tours/manage` | Staff/Admin | List all tours regardless of status |
+| GET | `/api/v1/tours/{id}` | Public | Get tour details with full itinerary |
+| PUT | `/api/v1/tours/{id}` | Staff/Admin | Update tour info |
+| POST | `/api/v1/tours/{id}/publish` | Staff/Admin | Publish tour (`DRAFT` -> `PUBLISHED`) |
+| POST | `/api/v1/tours/{id}/cancel` | Staff/Admin | Cancel tour |
+| DELETE | `/api/v1/tours/{id}` | Staff/Admin | Soft delete / archive tour |
+
+> 📖 **Xem hướng dẫn chi tiết khởi chạy bằng tiếng Việt tại:** [HUONG_DAN_CHAY.md](HUONG_DAN_CHAY.md)
+
 ---
 
 ## 🧪 Testing

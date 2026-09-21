@@ -56,19 +56,19 @@ class AuthService:
         if await self._user_repo.email_exists(data.email):
             raise ConflictError(f"Email '{data.email}' is already registered")
 
-        # Create user
+        # Get default CUSTOMER role
+        customer_role = await self._user_repo.get_role_by_name(RoleName.CUSTOMER.value)
+
+        # Create user with role
         user = User(
             email=data.email,
             full_name=data.full_name,
             hashed_password=hash_password(data.password),
             is_active=True,
         )
-        user = await self._user_repo.create(user)
-
-        # Assign default CUSTOMER role
-        customer_role = await self._user_repo.get_role_by_name(RoleName.CUSTOMER.value)
         if customer_role:
-            await self._user_repo.assign_role(user, customer_role)
+            user.roles = [customer_role]
+        user = await self._user_repo.create(user)
 
         # Audit log
         await self._audit.log(

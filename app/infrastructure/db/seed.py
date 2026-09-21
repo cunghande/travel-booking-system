@@ -44,20 +44,17 @@ async def seed_admin(session: AsyncSession, roles: dict[str, Role]) -> None:
     admin = result.scalar_one_or_none()
 
     if not admin:
+        admin_role = roles.get(RoleName.ADMIN.value)
         admin = User(
             email=settings.ADMIN_EMAIL,
             full_name=settings.ADMIN_FULL_NAME,
             hashed_password=hash_password(settings.ADMIN_PASSWORD),
             is_active=True,
         )
+        if admin_role:
+            admin.roles = [admin_role]
         session.add(admin)
         await session.flush()
-
-        # Assign ADMIN role
-        admin_role = roles.get(RoleName.ADMIN.value)
-        if admin_role:
-            admin.roles.append(admin_role)
-            await session.flush()
 
         logger.info("Created admin user: {}", settings.ADMIN_EMAIL)
     else:

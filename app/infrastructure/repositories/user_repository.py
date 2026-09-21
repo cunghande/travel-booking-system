@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from typing import Sequence
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -102,12 +102,22 @@ class UserRepository:
 
     async def assign_role(self, user: User, role: Role) -> None:
         """Assign a role to a user."""
-        if role not in user.roles:
-            user.roles.append(role)
+        check = select(func.count()).select_from(user_roles).where(
+            user_roles.c.user_id == user.id,
+            user_roles.c.role_id == role.id,
+        )
+        exists = (await self._session.execute(check)).scalar() or 0
+        if not exists:
+            await self._session.execute(
+                insert(user_roles).values(user_id=user.id, role_id=role.id)
+            )
             await self._session.flush()
 
     async def remove_role(self, user: User, role: Role) -> None:
         """Remove a role from a user."""
-        if role in user.roles:
-            user.roles.remove(role)
-            await self._session.flush()
+        stmt = delete(user_roles).where(
+            user_roles.c.user_id == user.id,
+            user_roles.c.role_id == role.id,
+        )
+        await self._session.execute(stmt)
+        await self._session.flush()

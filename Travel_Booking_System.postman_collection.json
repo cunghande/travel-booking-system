@@ -1,31 +1,17 @@
 {
   "info": {
-    "name": "Travel Booking System API (Week 1 / Sprint 1)",
+    "name": "Travel Booking System API (Sprint 1)",
     "_postman_id": "c7a8d6e1-9123-4f56-b789-0123456789ab",
-    "description": "Postman Collection for testing Travel Booking System API — Core + Auth & RBAC",
+    "description": "Postman Collection for Travel Booking System API — Auth, Users, Tours",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:8000",
-      "type": "string"
-    },
-    {
-      "key": "access_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "refresh_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "admin_access_token",
-      "value": "",
-      "type": "string"
-    }
+    { "key": "baseUrl", "value": "http://localhost:8000", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "admin_access_token", "value": "", "type": "string" },
+    { "key": "created_user_id", "value": "", "type": "string" },
+    { "key": "created_tour_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -33,11 +19,7 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["health"]
-        }
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
       }
     },
     {
@@ -45,160 +27,50 @@
       "item": [
         {
           "name": "Register Customer",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.id) {",
-                  "    pm.collectionVariables.set('created_user_id', jsonData.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
+          "event": [{ "listen": "test", "script": { "exec": ["var d = pm.response.json(); if (d.id) pm.collectionVariables.set('created_user_id', d.id);"], "type": "text/javascript" } }],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"customer1@example.com\",\n  \"full_name\": \"Nguyen Van A\",\n  \"password\": \"SecurePass@123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "register"]
-            }
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"customer1@example.com\",\n  \"full_name\": \"Nguyen Van A\",\n  \"password\": \"SecurePass@123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register"] }
           }
         },
         {
           "name": "Login Customer",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.access_token) {",
-                  "    pm.collectionVariables.set('access_token', jsonData.access_token);",
-                  "    pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
+          "event": [{ "listen": "test", "script": { "exec": ["var d = pm.response.json(); if (d.access_token) { pm.collectionVariables.set('access_token', d.access_token); pm.collectionVariables.set('refresh_token', d.refresh_token); }"], "type": "text/javascript" } }],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"customer1@example.com\",\n  \"password\": \"SecurePass@123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
-            }
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"customer1@example.com\",\n  \"password\": \"SecurePass@123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
           }
         },
         {
           "name": "Login Admin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.access_token) {",
-                  "    pm.collectionVariables.set('admin_access_token', jsonData.access_token);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
+          "event": [{ "listen": "test", "script": { "exec": ["var d = pm.response.json(); if (d.access_token) pm.collectionVariables.set('admin_access_token', d.access_token);"], "type": "text/javascript" } }],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@travelbooking.com\",\n  \"password\": \"Admin@123456\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "login"]
-            }
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@travelbooking.com\",\n  \"password\": \"Admin@123456\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
           }
         },
         {
           "name": "Get Current User (/me)",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "me"]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/me", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","me"] }
           }
         },
         {
           "name": "Refresh Token",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.access_token) {",
-                  "    pm.collectionVariables.set('access_token', jsonData.access_token);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
+          "event": [{ "listen": "test", "script": { "exec": ["var d = pm.response.json(); if (d.access_token) pm.collectionVariables.set('access_token', d.access_token);"], "type": "text/javascript" } }],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/refresh",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "refresh"]
-            }
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","refresh"] }
           }
         }
       ]
@@ -210,119 +82,154 @@
           "name": "List Users",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users?page=1&page_size=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "users"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "page_size",
-                  "value": "20"
-                }
-              ]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/users?page=1&page_size=20", "host": ["{{baseUrl}}"], "path": ["api","v1","users"], "query": [{ "key": "page", "value": "1" }, { "key": "page_size", "value": "20" }] }
           }
         },
         {
           "name": "Get User By ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "users", "{{created_user_id}}"]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}", "host": ["{{baseUrl}}"], "path": ["api","v1","users","{{created_user_id}}"] }
           }
         },
         {
           "name": "Update User",
           "request": {
             "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Nguyen Van A (Updated)\",\n  \"is_active\": true\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "users", "{{created_user_id}}"]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"full_name\": \"Nguyen Van A (Updated)\",\n  \"is_active\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}", "host": ["{{baseUrl}}"], "path": ["api","v1","users","{{created_user_id}}"] }
           }
         },
         {
           "name": "Assign Role (STAFF)",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"role_name\": \"STAFF\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}/roles",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "users", "{{created_user_id}}", "roles"]
-            }
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"role_name\": \"STAFF\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}/roles", "host": ["{{baseUrl}}"], "path": ["api","v1","users","{{created_user_id}}","roles"] }
           }
         },
         {
           "name": "Remove Role (STAFF)",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"role_name\": \"STAFF\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}/roles", "host": ["{{baseUrl}}"], "path": ["api","v1","users","{{created_user_id}}","roles"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Tour Management",
+      "item": [
+        {
+          "name": "Create Tour (with Itinerary)",
+          "event": [{ "listen": "test", "script": { "exec": ["var d = pm.response.json(); if (d.id) pm.collectionVariables.set('created_tour_id', d.id);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }, { "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"role_name\": \"STAFF\"\n}"
+              "raw": "{\n  \"title\": \"Ha Long Bay 3 Days 2 Nights\",\n  \"description\": \"Explore the UNESCO World Heritage site with luxury cruise, kayaking, and cave tours.\",\n  \"category\": \"Adventure\",\n  \"tags\": [\"beach\", \"cruise\", \"nature\", \"UNESCO\"],\n  \"destination\": \"Ha Long Bay, Quang Ninh\",\n  \"base_price_adult\": 250.00,\n  \"base_price_child\": 125.00,\n  \"max_participants\": 30,\n  \"start_date\": \"2027-01-15\",\n  \"end_date\": \"2027-01-18\",\n  \"itineraries\": [\n    {\n      \"day_number\": 1,\n      \"title\": \"Day 1 - Departure & Cruise\",\n      \"activities\": [\n        {\n          \"place_name\": \"Hanoi Old Quarter\",\n          \"time\": \"06:00\",\n          \"description\": \"Pickup from hotel\"\n        },\n        {\n          \"place_name\": \"Ha Long Bay Pier\",\n          \"time\": \"12:00\",\n          \"description\": \"Board luxury cruise ship\"\n        },\n        {\n          \"place_name\": \"Sung Sot Cave\",\n          \"time\": \"15:00\",\n          \"latitude\": 20.9101,\n          \"longitude\": 107.1122,\n          \"description\": \"Explore the Cave of Surprises\"\n        }\n      ]\n    },\n    {\n      \"day_number\": 2,\n      \"title\": \"Day 2 - Kayaking & Beach\",\n      \"activities\": [\n        {\n          \"place_name\": \"Luon Cave\",\n          \"time\": \"08:00\",\n          \"description\": \"Kayaking through limestone caves\"\n        },\n        {\n          \"place_name\": \"Ti Top Island\",\n          \"time\": \"14:00\",\n          \"latitude\": 20.9300,\n          \"longitude\": 107.0800,\n          \"description\": \"Swimming and beach time\"\n        }\n      ]\n    },\n    {\n      \"day_number\": 3,\n      \"title\": \"Day 3 - Return to Hanoi\",\n      \"activities\": [\n        {\n          \"place_name\": \"Ha Long Bay Pier\",\n          \"time\": \"09:00\",\n          \"description\": \"Disembark cruise\"\n        },\n        {\n          \"place_name\": \"Hanoi\",\n          \"time\": \"14:00\",\n          \"description\": \"Arrive back in Hanoi\"\n        }\n      ]\n    }\n  ]\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users/{{created_user_id}}/roles",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "users", "{{created_user_id}}", "roles"]
-            }
+            "url": { "raw": "{{baseUrl}}/api/v1/tours", "host": ["{{baseUrl}}"], "path": ["api","v1","tours"] }
+          }
+        },
+        {
+          "name": "Create Tour (Simple, no itinerary)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Da Nang Beach Resort 2 Days\",\n  \"description\": \"Relax at beautiful My Khe Beach\",\n  \"category\": \"Beach & Resort\",\n  \"tags\": [\"beach\", \"resort\", \"relaxation\"],\n  \"destination\": \"Da Nang\",\n  \"base_price_adult\": 180.00,\n  \"base_price_child\": 90.00,\n  \"max_participants\": 20,\n  \"start_date\": \"2027-02-10\",\n  \"end_date\": \"2027-02-12\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/tours", "host": ["{{baseUrl}}"], "path": ["api","v1","tours"] }
+          }
+        },
+        {
+          "name": "Get Tour Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/{{created_tour_id}}", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","{{created_tour_id}}"] }
+          }
+        },
+        {
+          "name": "List Tours (Public - PUBLISHED only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours?page=1&page_size=10", "host": ["{{baseUrl}}"], "path": ["api","v1","tours"], "query": [{ "key": "page", "value": "1" }, { "key": "page_size", "value": "10" }] }
+          }
+        },
+        {
+          "name": "List Tours (Manage - All Statuses)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/manage?page=1&page_size=10", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","manage"], "query": [{ "key": "page", "value": "1" }, { "key": "page_size", "value": "10" }] }
+          }
+        },
+        {
+          "name": "Search Tours by Destination",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/manage?destination=Ha Long&page=1", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","manage"], "query": [{ "key": "destination", "value": "Ha Long" }, { "key": "page", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Filter Tours by Price Range",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/manage?min_price=100&max_price=300&sort_by=price&sort_order=asc", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","manage"], "query": [{ "key": "min_price", "value": "100" }, { "key": "max_price", "value": "300" }, { "key": "sort_by", "value": "price" }, { "key": "sort_order", "value": "asc" }] }
+          }
+        },
+        {
+          "name": "Filter Tours by Category",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/manage?category=Adventure", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","manage"], "query": [{ "key": "category", "value": "Adventure" }] }
+          }
+        },
+        {
+          "name": "Update Tour",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Ha Long Bay Premium 3D2N\",\n  \"base_price_adult\": 280.00,\n  \"max_participants\": 25\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/{{created_tour_id}}", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","{{created_tour_id}}"] }
+          }
+        },
+        {
+          "name": "Publish Tour (DRAFT -> PUBLISHED)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/{{created_tour_id}}/publish", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","{{created_tour_id}}","publish"] }
+          }
+        },
+        {
+          "name": "Cancel Tour",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/{{created_tour_id}}/cancel", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","{{created_tour_id}}","cancel"] }
+          }
+        },
+        {
+          "name": "Delete (Archive) Tour",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tours/{{created_tour_id}}", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","{{created_tour_id}}"] }
           }
         }
       ]

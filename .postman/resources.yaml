@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: 4b65da8c-86f8-4f43-8822-e9d8f2f396f7
+
+localResources:
+  collections:
+    - ../Travel_Booking_System.postman_collection.json

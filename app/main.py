@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # --- Startup ---
     setup_logging()
     logger.info(
-        "🚀 {} v{} starting | env={}",
+        "Application starting: {} v{} | env={}",
         settings.APP_NAME,
         settings.APP_VERSION,
         settings.APP_ENV,
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     # --- Shutdown ---
     await close_redis_pool()
-    logger.info("👋 Application shutting down")
+    logger.info("Application shutting down")
 
 
 def create_app() -> FastAPI:
