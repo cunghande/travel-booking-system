@@ -72,7 +72,8 @@ Sau khi chạy lệnh ở mục 1 hoặc 2, bạn mở trình duyệt web:
 
 | Mục | Đường dẫn (URL) | Mô tả |
 | :--- | :--- | :--- |
-| **Trang tài liệu tương tác (Swagger UI)** | [http://localhost:8000/docs](http://localhost:8000/docs) | Giao diện trực quan để xem và test thử ngay tất cả các API |
+| **Giao diện Web Trực quan (Frontend)** | [http://localhost:8000/](http://localhost:8000/) | Giao diện đặt tour trực tiếp: duyệt tour, xem lịch trình, tính tiền và đặt chỗ |
+| **Trang tài liệu tương tác (Swagger UI)** | [http://localhost:8000/docs](http://localhost:8000/docs) | Giao diện tương tác để xem và test thử ngay tất cả 19 endpoints |
 | **Tài liệu dạng ReDoc** | [http://localhost:8000/redoc](http://localhost:8000/redoc) | Đọc tài liệu chuẩn OpenAPI |
 | **Kiểm tra sức khỏe (Health Check)** | [http://localhost:8000/health](http://localhost:8000/health) | Trả về `{"status": "healthy"}` |
 
@@ -80,26 +81,31 @@ Sau khi chạy lệnh ở mục 1 hoặc 2, bạn mở trình duyệt web:
 
 ## 🧪 4. Hướng dẫn Test API bằng Postman
 
-Dự án đã chuẩn bị sẵn file Collection gồm **23 API mẫu** có sẵn script tự động lưu Token:
+Dự án đã chuẩn bị sẵn file Collection gồm **29 API mẫu** (đầy đủ Auth, Users, Tours, Bookings) có sẵn script tự động lưu Token:
 
 1. Mở ứng dụng **Postman**.
 2. Nhấn nút **Import** (góc trên bên trái) $\rightarrow$ Kéo thả file:
    `d:\Code\Travel-Booking-System\Travel_Booking_System.postman_collection.json`
-3. Thứ tự test khuyến nghị:
-   - **Bước 1**: Mở thư mục `01. Auth` $\rightarrow$ Nhấn Send request **`Login Admin`** (hoặc `Register Customer` rồi `Login Customer`). Token sẽ tự động được lưu vào Postman.
-   - **Bước 2**: Mở thư mục `03. Tour Management` $\rightarrow$ Nhấn Send request **`Create Tour (with Itinerary)`** để tạo tour du lịch Hạ Long mẫu.
-   - **Bước 3**: Chạy tiếp các request **`List Tours`**, **`Search Tours`**, **`Filter Tours`**, **`Publish Tour`** để kiểm tra hoạt động.
+3. Thứ tự test khuyến nghị theo luồng thực tế:
+   - **Bước 1 (Đăng nhập)**: Mở thư mục `01. Auth` $\rightarrow$ Nhấn Send request **`Login Admin`** (hoặc `Register Customer`). Token sẽ tự động được lưu vào Postman.
+   - **Bước 2 (Tạo Tour)**: Mở thư mục `03. Tour Management` $\rightarrow$ Nhấn Send **`Create Tour (with Itinerary)`** để tạo tour và **`Publish Tour`** để mở bán.
+   - **Bước 3 (Đặt Tour - Mới)**: Mở thư mục **`04. Booking Management`** $\rightarrow$ Nhấn Send **`Create Booking (Customer)`** để đặt chỗ (hệ thống tự tính tiền vé và kiểm tra số chỗ trống).
+   - **Bước 4 (Xem lịch sử đặt)**: Nhấn Send **`My Bookings (Customer)`** hoặc **`Get Booking Detail`**.
+   - **Bước 5 (Duyệt hoặc Hủy đơn)**: Admin nhấn **`Confirm Booking`** để xác nhận thanh toán, hoặc khách nhấn **`Cancel Booking`** để hủy đơn.
 
 ---
 
 ## 🧪 5. Chạy Automated Tests (Kiểm thử tự động)
 
-Để kiểm tra độ ổn định và tính đúng đắn của toàn bộ code:
+Để kiểm tra độ ổn định và tính đúng đắn của toàn bộ code (35 tests):
 
 ```powershell
-# Chạy toàn bộ unit test
+# Chạy toàn bộ unit test (Auth, Tour, Booking)
 .\venv\Scripts\python.exe -m pytest tests/unit -v
 
 # Chạy riêng kiểm thử nghiệp vụ Tour
 .\venv\Scripts\python.exe -m pytest tests/unit/test_tour_service.py -v
+
+# Chạy riêng kiểm thử nghiệp vụ Đặt tour (Booking)
+.\venv\Scripts\python.exe -m pytest tests/unit/test_booking_service.py -v
 ```

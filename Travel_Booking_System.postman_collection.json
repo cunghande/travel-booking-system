@@ -11,7 +11,8 @@
     { "key": "refresh_token", "value": "", "type": "string" },
     { "key": "admin_access_token", "value": "", "type": "string" },
     { "key": "created_user_id", "value": "", "type": "string" },
-    { "key": "created_tour_id", "value": "", "type": "string" }
+    { "key": "created_tour_id", "value": "", "type": "string" },
+    { "key": "created_booking_id", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -230,6 +231,67 @@
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
             "url": { "raw": "{{baseUrl}}/api/v1/tours/{{created_tour_id}}", "host": ["{{baseUrl}}"], "path": ["api","v1","tours","{{created_tour_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Booking Management",
+      "item": [
+        {
+          "name": "Create Booking (Customer)",
+          "event": [{ "listen": "test", "script": { "exec": ["var d = pm.response.json(); if (d.id) pm.collectionVariables.set('created_booking_id', d.id);"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tour_id\": \"{{created_tour_id}}\",\n  \"num_adults\": 2,\n  \"num_children\": 1,\n  \"contact_name\": \"Nguyen Van A\",\n  \"contact_email\": \"customer1@example.com\",\n  \"contact_phone\": \"0912345678\",\n  \"special_requests\": \"Yêu cầu phòng không hút thuốc và tầng cao\",\n  \"passengers\": [\n    {\n      \"full_name\": \"Nguyen Van A\",\n      \"passenger_type\": \"ADULT\",\n      \"id_card_number\": \"001234567890\"\n    },\n    {\n      \"full_name\": \"Tran Thi B\",\n      \"passenger_type\": \"ADULT\",\n      \"id_card_number\": \"001234567891\"\n    },\n    {\n      \"full_name\": \"Nguyen Van C\",\n      \"passenger_type\": \"CHILD\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/bookings", "host": ["{{baseUrl}}"], "path": ["api","v1","bookings"] }
+          }
+        },
+        {
+          "name": "My Bookings (Customer)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/bookings/my?page=1&page_size=10", "host": ["{{baseUrl}}"], "path": ["api","v1","bookings","my"], "query": [{ "key": "page", "value": "1" }, { "key": "page_size", "value": "10" }] }
+          }
+        },
+        {
+          "name": "Get Booking Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/bookings/{{created_booking_id}}", "host": ["{{baseUrl}}"], "path": ["api","v1","bookings","{{created_booking_id}}"] }
+          }
+        },
+        {
+          "name": "List All Bookings (Admin/Staff)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/bookings?page=1&page_size=20", "host": ["{{baseUrl}}"], "path": ["api","v1","bookings"], "query": [{ "key": "page", "value": "1" }, { "key": "page_size", "value": "20" }] }
+          }
+        },
+        {
+          "name": "Confirm Booking (Admin/Staff)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/bookings/{{created_booking_id}}/confirm", "host": ["{{baseUrl}}"], "path": ["api","v1","bookings","{{created_booking_id}}","confirm"] }
+          }
+        },
+        {
+          "name": "Cancel Booking (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/bookings/{{created_booking_id}}/cancel", "host": ["{{baseUrl}}"], "path": ["api","v1","bookings","{{created_booking_id}}","cancel"] }
           }
         }
       ]

@@ -4,12 +4,14 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from app.api.v1.router import router as v1_router
@@ -81,6 +83,21 @@ def create_app() -> FastAPI:
 
     # --- Routes ---
     application.include_router(v1_router)
+
+    # --- Static Files & Frontend ---
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if os.path.exists(static_dir):
+        application.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    @application.get("/", tags=["Frontend"])
+    async def serve_frontend():
+        index_file = os.path.join(static_dir, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        return {
+            "message": "Wanderlust Travel API is running.",
+            "docs": "/docs",
+        }
 
     @application.get("/health", tags=["Health"])
     async def health_check() -> dict:

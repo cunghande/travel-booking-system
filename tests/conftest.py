@@ -12,6 +12,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, text
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -30,7 +31,7 @@ from app.main import app
 
 TEST_DB_URL = settings.DATABASE_URL
 
-test_engine = create_async_engine(TEST_DB_URL, echo=False)
+test_engine = create_async_engine(TEST_DB_URL, poolclass=NullPool, echo=False)
 test_session_factory = async_sessionmaker(
     bind=test_engine,
     class_=AsyncSession,
@@ -39,13 +40,6 @@ test_session_factory = async_sessionmaker(
 
 
 # --------------- Fixtures ---------------
-
-@pytest_asyncio.fixture(scope="session")
-def event_loop():
-    """Create a single event loop for the entire test session."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -113,22 +107,20 @@ async def test_user(db_session: AsyncSession) -> User:
     """Create a test user with CUSTOMER role."""
     from sqlalchemy import select
 
+    stmt = select(Role).where(Role.name == RoleName.CUSTOMER.value)
+    result = await db_session.execute(stmt)
+    role = result.scalar_one_or_none()
+
     user = User(
         email=f"testuser_{uuid.uuid4().hex[:8]}@test.com",
         full_name="Test User",
         hashed_password=hash_password("Test@12345"),
         is_active=True,
     )
+    if role:
+        user.roles = [role]
     db_session.add(user)
     await db_session.flush()
-
-    # Assign CUSTOMER role
-    stmt = select(Role).where(Role.name == RoleName.CUSTOMER.value)
-    result = await db_session.execute(stmt)
-    role = result.scalar_one_or_none()
-    if role:
-        user.roles.append(role)
-        await db_session.flush()
 
     return user
 
@@ -138,21 +130,19 @@ async def admin_user(db_session: AsyncSession) -> User:
     """Create a test admin user."""
     from sqlalchemy import select
 
+    stmt = select(Role).where(Role.name == RoleName.ADMIN.value)
+    result = await db_session.execute(stmt)
+    role = result.scalar_one_or_none()
+
     user = User(
         email=f"admin_{uuid.uuid4().hex[:8]}@test.com",
         full_name="Admin User",
         hashed_password=hash_password("Admin@12345"),
         is_active=True,
     )
+    if role:
+        user.roles = [role]
     db_session.add(user)
     await db_session.flush()
-
-    # Assign ADMIN role
-    stmt = select(Role).where(Role.name == RoleName.ADMIN.value)
-    result = await db_session.execute(stmt)
-    role = result.scalar_one_or_none()
-    if role:
-        user.roles.append(role)
-        await db_session.flush()
 
     return user

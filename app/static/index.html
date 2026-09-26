@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wanderlust — Hệ Thống Đặt Tour Du Lịch Cao Cấp</title>
+  <meta name="description" content="Trải nghiệm du lịch đẳng cấp cùng Wanderlust. Đặt tour Hạ Long, Đà Nẵng, Phú Quốc với lịch trình chi tiết và giá tốt nhất.">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- ================= HEADER / NAVBAR ================= -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#" class="nav-logo" id="logoLink">
+        <span class="logo-icon"><i class="fa-solid fa-compass"></i></span>
+        <div class="logo-text">
+          <span class="brand-name">Wanderlust</span>
+          <span class="brand-sub">Travel & Tours</span>
+        </div>
+      </a>
+
+      <nav class="nav-menu">
+        <a href="#tours-section" class="nav-link active"><i class="fa-solid fa-map-location-dot"></i> Khám Phá Tour</a>
+        <a href="#about-section" class="nav-link"><i class="fa-solid fa-shield-halved"></i> Dịch Vụ</a>
+        <a href="javascript:void(0)" class="nav-link" id="myBookingsNavBtn"><i class="fa-solid fa-ticket"></i> Đơn Của Tôi</a>
+        <a href="/docs" target="_blank" class="nav-link badge-link"><i class="fa-solid fa-code"></i> Swagger API</a>
+      </nav>
+
+      <div class="nav-actions" id="navActions">
+        <!-- Nút đăng nhập/đăng ký hoặc Avatar người dùng hiển thị qua JS -->
+        <button class="btn btn-outline" id="loginBtn"><i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập</button>
+        <button class="btn btn-primary" id="registerBtn"><i class="fa-solid fa-user-plus"></i> Đăng Ký</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= HERO SECTION ================= -->
+  <section class="hero-section">
+    <div class="hero-bg-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-badge"><i class="fa-solid fa-sparkles"></i> Khám Phá Những Vùng Đất Mới</div>
+      <h1 class="hero-title">Trải Nghiệm Du Lịch Đỉnh Cao Cùng <span class="gradient-text">Wanderlust</span></h1>
+      <p class="hero-desc">Hơn 50+ hành trình khám phá vịnh biển kỳ vĩ, văn hóa bản địa độc đáo và trải nghiệm nghỉ dưỡng 5 sao chuẩn quốc tế.</p>
+
+      <!-- Search & Filter Card -->
+      <div class="search-filter-card">
+        <div class="filter-item">
+          <label><i class="fa-solid fa-location-dot"></i> Điểm Đến</label>
+          <input type="text" id="filterDestination" placeholder="Hạ Long, Đà Nẵng, Phú Quốc...">
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-item">
+          <label><i class="fa-solid fa-layer-group"></i> Thể Loại</label>
+          <select id="filterCategory">
+            <option value="">Tất cả thể loại</option>
+            <option value="Adventure">Phiêu Lưu (Adventure)</option>
+            <option value="Beach & Resort">Biển & Nghỉ Dưỡng</option>
+            <option value="Cultural">Văn Hóa & Lịch Sử</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-item">
+          <label><i class="fa-solid fa-sack-dollar"></i> Mức Giá Tối Đa</label>
+          <select id="filterMaxPrice">
+            <option value="">Không giới hạn</option>
+            <option value="150">Dưới $150</option>
+            <option value="250">Dưới $250</option>
+            <option value="400">Dưới $400</option>
+          </select>
+        </div>
+        <button class="btn btn-search" id="btnSearchTours">
+          <i class="fa-solid fa-magnifying-glass"></i> Tìm Tour
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TOURS SHOWCASE SECTION ================= -->
+  <section class="tours-section" id="tours-section">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Tour Nổi Bật</span>
+          <h2 class="section-title">Các Hành Trình Đang Mở Bán</h2>
+        </div>
+        <div class="category-pills" id="categoryPills">
+          <button class="pill active" data-category="">Tất cả</button>
+          <button class="pill" data-category="Adventure">Adventure</button>
+          <button class="pill" data-category="Beach & Resort">Beach & Resort</button>
+          <button class="pill" data-category="Cultural">Cultural</button>
+        </div>
+      </div>
+
+      <!-- Grid danh sách tour -->
+      <div class="tours-grid" id="toursGrid">
+        <!-- Dynamic cards will be rendered here by JS -->
+        <div class="loading-state">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+          <p>Đang tải danh sách tour...</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SERVICES BANNER ================= -->
+  <section class="about-section" id="about-section">
+    <div class="container">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-calendar-check"></i></div>
+          <h3>Đặt Tour Tức Thì</h3>
+          <p>Xác nhận đơn và giữ chỗ tự động trong 3 giây. Hủy linh hoạt trước ngày đi.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-route"></i></div>
+          <h3>Lịch Trình Tỉ Mỉ</h3>
+          <p>Từng mốc giờ, địa danh, bản đồ GPS và dịch vụ ăn uống được chuẩn bị chi tiết.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-headset"></i></div>
+          <h3>Hỗ Trợ 24/7</h3>
+          <p>Đội ngũ hướng dẫn viên chuyên nghiệp luôn đồng hành suốt chuyến hành trình.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-shield-heart"></i></div>
+          <h3>Bảo Hiểm Toàn Diện</h3>
+          <p>Tất cả hành khách đều được cấp bảo hiểm du lịch quốc tế miễn phí đi kèm.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MODAL: CHI TIẾT TOUR ================= -->
+  <div class="modal-backdrop" id="tourDetailModal">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div class="modal-badge" id="modalTourCategory">Adventure</div>
+        <button class="modal-close" onclick="closeModal('tourDetailModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <h2 class="modal-title" id="modalTourTitle">Tên Tour</h2>
+        <div class="modal-meta">
+          <span><i class="fa-solid fa-location-dot"></i> <strong id="modalTourDestination">Điểm đến</strong></span>
+          <span><i class="fa-solid fa-users"></i> Tối đa: <strong id="modalTourMaxPax">30 khách</strong></span>
+          <span><i class="fa-solid fa-calendar-days"></i> <strong id="modalTourDates">15/01/2027 - 18/01/2027</strong></span>
+        </div>
+        <p class="modal-description" id="modalTourDesc">Mô tả chi tiết tour...</p>
+        
+        <h3 class="subsection-title"><i class="fa-solid fa-list-check"></i> Lịch Trình Chi Tiết Các Ngày</h3>
+        <div class="itinerary-timeline" id="modalTourItinerary">
+          <!-- Render danh sách ngày & hoạt động -->
+        </div>
+
+        <div class="modal-footer-booking">
+          <div class="price-display">
+            <span class="price-label">Giá từ:</span>
+            <span class="price-val" id="modalTourPrice">$250.00</span>
+            <span class="price-unit">/ người lớn</span>
+          </div>
+          <button class="btn btn-primary btn-lg" id="modalBookNowBtn">
+            <i class="fa-solid fa-bolt"></i> Đặt Chỗ Ngay
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ĐẶT TOUR (BOOKING MODAL) ================= -->
+  <div class="modal-backdrop" id="bookingModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-heading"><i class="fa-solid fa-ticket"></i> Đặt Tour Du Lịch</h3>
+        <button class="modal-close" onclick="closeModal('bookingModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="booking-tour-summary">
+          <h4 id="bookModalTourTitle">Hạ Long Bay 3 Ngày 2 Đêm</h4>
+          <p id="bookModalTourDest"><i class="fa-solid fa-location-dot"></i> Vịnh Hạ Long, Quảng Ninh</p>
+        </div>
+
+        <form id="bookingForm">
+          <!-- Chọn số lượng vé -->
+          <div class="passenger-counter-group">
+            <div class="counter-item">
+              <div>
+                <strong>Người lớn (>=12 tuổi)</strong>
+                <span class="counter-price" id="labelAdultPrice">$250.00 / vé</span>
+              </div>
+              <div class="counter-controls">
+                <button type="button" class="btn-counter" onclick="changePax('adult', -1)">-</button>
+                <input type="number" id="bookNumAdults" value="1" min="1" max="30" readonly>
+                <button type="button" class="btn-counter" onclick="changePax('adult', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="counter-item">
+              <div>
+                <strong>Trẻ em (2 - 11 tuổi)</strong>
+                <span class="counter-price" id="labelChildPrice">$125.00 / vé</span>
+              </div>
+              <div class="counter-controls">
+                <button type="button" class="btn-counter" onclick="changePax('child', -1)">-</button>
+                <input type="number" id="bookNumChildren" value="0" min="0" max="30" readonly>
+                <button type="button" class="btn-counter" onclick="changePax('child', 1)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thông tin liên hệ -->
+          <h4 class="form-section-title"><i class="fa-solid fa-address-card"></i> Thông Tin Người Đặt</h4>
+          <div class="form-group">
+            <label for="bookContactName">Họ và Tên *</label>
+            <input type="text" id="bookContactName" required placeholder="Ví dụ: Nguyễn Văn A">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="bookContactEmail">Email nhận vé *</label>
+              <input type="email" id="bookContactEmail" required placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+              <label for="bookContactPhone">Số điện thoại *</label>
+              <input type="tel" id="bookContactPhone" required placeholder="0912345678">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="bookSpecialRequests">Yêu cầu đặc biệt (nếu có)</label>
+            <textarea id="bookSpecialRequests" rows="2" placeholder="Ví dụ: ăn kiêng, phòng ban công, xe lăn..."></textarea>
+          </div>
+
+          <!-- Tổng tiền và nút submit -->
+          <div class="booking-total-banner">
+            <div>
+              <span>Tổng Số Tiền:</span>
+              <h2 id="bookTotalDisplay">$250.00</h2>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg" id="btnSubmitBooking">
+              <i class="fa-solid fa-check"></i> Xác Nhận Đặt Tour
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ĐĂNG NHẬP / ĐĂNG KÝ ================= -->
+  <div class="modal-backdrop" id="authModal">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Đăng Nhập</button>
+          <button class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">Đăng Ký</button>
+        </div>
+        <button class="modal-close" onclick="closeModal('authModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- Form Login -->
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" required placeholder="admin@travelbooking.com" value="admin@travelbooking.com">
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Mật khẩu</label>
+            <input type="password" id="loginPassword" required placeholder="••••••••" value="Admin@123456">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Đăng Nhập Ngay</button>
+          
+          <div class="demo-login-box">
+            <span>Tài khoản thử nghiệm sẵn có:</span>
+            <button type="button" class="btn-demo" onclick="fillDemoAdmin()">👑 Đăng nhập Admin mẫu</button>
+          </div>
+        </form>
+
+        <!-- Form Register -->
+        <form id="registerForm" class="hidden">
+          <div class="form-group">
+            <label for="regFullName">Họ và tên *</label>
+            <input type="text" id="regFullName" required placeholder="Nguyễn Văn A">
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email *</label>
+            <input type="email" id="regEmail" required placeholder="nguyenvana@gmail.com">
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Mật khẩu (tối thiểu 8 ký tự) *</label>
+            <input type="password" id="regPassword" minlength="8" required placeholder="Password@123">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Tạo Tài Khoản</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ĐƠN CỦA TÔI (MY BOOKINGS) ================= -->
+  <div class="modal-backdrop" id="myBookingsModal">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-heading"><i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Đơn Đặt Tour</h3>
+        <button class="modal-close" onclick="closeModal('myBookingsModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="bookings-list" id="myBookingsContainer">
+          <!-- Render danh sách booking qua JS -->
+          <div class="empty-state">
+            <i class="fa-solid fa-ticket-simple"></i>
+            <p>Bạn chưa đặt tour nào. Hãy khám phá và chọn tour yêu thích ngay nhé!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <h3><i class="fa-solid fa-compass"></i> Wanderlust Travel</h3>
+        <p>Hệ thống đặt tour du lịch cao cấp ứng dụng Clean Architecture & FastAPI.</p>
+      </div>
+      <div class="footer-links">
+        <p>© 2026 Wanderlust Travel Inc. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- App Javascript -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
