@@ -9,7 +9,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -18,6 +17,7 @@ from app.api.v1.router import router as v1_router
 from app.core.config import settings
 from app.core.exceptions import AppException
 from app.core.logging import setup_logging
+from app.core.middleware import register_middlewares
 from app.infrastructure.redis.client import close_redis_pool
 
 
@@ -51,13 +51,7 @@ def create_app() -> FastAPI:
     )
 
     # --- Middleware ---
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    register_middlewares(application)
 
     # --- Exception Handlers ---
     @application.exception_handler(AppException)

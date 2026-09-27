@@ -5,3 +5,7 @@ workspace:
 localResources:
   collections:
     - ../Travel_Booking_System.postman_collection.json
+
+cloudResources:
+  collections:
+    ../postman/collections/Travel Booking System API (Sprint 1): 7b1c1b65-1632-4b15-8d27-10e8d31b8e49
