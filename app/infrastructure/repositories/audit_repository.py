@@ -1,42 +1,60 @@
 # ============================================================
-# Travel Booking System — Audit Log Repository
+# Travel Booking System — Repository: Nhật ký hệ thống (Audit Repository)
+# ============================================================
+# Tầng truy xuất dữ liệu ghi nhận hoạt động và bảo mật (Audit Logs).
+# Sử dụng hàm fn_ghi_nhat_ky trong PostgreSQL qua asyncpg thuần.
 # ============================================================
 
-from __future__ import annotations
-
+import json
+from typing import Any, Dict, Optional
 import uuid
-from typing import Any
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.domain.entities.user import AuditLog
+import asyncpg
 
 
 class AuditRepository:
-    """Repository for audit log data access."""
+    """
+    Repository chuyên ghi nhận nhật ký hệ thống (Audit Logs) để truy vết và bảo mật.
+    """
 
-    def __init__(self, session: AsyncSession):
-        self._session = session
+    def __init__(self, conn: asyncpg.Connection):
+        """
+        Khởi tạo repository với kết nối asyncpg.
+        """
+        self._conn = conn
 
     async def create(
         self,
         *,
-        user_id: uuid.UUID | None,
+        user_id: Optional[uuid.UUID] = None,
         action: str,
-        resource: str | None = None,
-        resource_id: str | None = None,
-        details: dict[str, Any] | None = None,
-        ip_address: str | None = None,
-    ) -> AuditLog:
-        """Create an audit log entry."""
-        log = AuditLog(
-            user_id=user_id,
-            action=action,
-            resource=resource,
-            resource_id=str(resource_id) if resource_id else None,
-            details=details,
-            ip_address=ip_address,
+        resource: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+        ip_address: Optional[str] = None,
+    ) -> Optional[uuid.UUID]:
+        """
+        Ghi một bản ghi nhật ký mới.
+        Gọi function: fn_ghi_nhat_ky(...)
+        """
+        details_json = json.dumps(details, ensure_ascii=False) if details else None
+
+        sql = """
+            SELECT fn_ghi_nhat_ky(
+                p_user_id := $1,
+                p_action := $2,
+                p_resource := $3,
+                p_resource_id := $4,
+                p_details := $5::jsonb,
+                p_ip_address := $6
+            );
+        """
+        log_id = await self._conn.fetchval(
+            sql,
+            user_id,
+            action,
+            resource,
+            resource_id,
+            details_json,
+            ip_address,
         )
-        self._session.add(log)
-        await self._session.flush()
-        return log
+        return log_id
