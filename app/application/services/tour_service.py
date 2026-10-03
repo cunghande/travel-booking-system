@@ -1,173 +1,133 @@
 # ============================================================
-# Travel Booking System — Tour Service
+# Travel Booking System — Service: Tour du lịch (Tour Service)
 # ============================================================
-# Business logic for Tour CRUD, search/filter, status transitions.
+# Tầng nghiệp vụ Tour: Tìm kiếm, tạo mới, chỉnh sửa và quản lý vòng đời Tour.
+# Không dùng ORM — Tương tác qua TourRepository gọi Stored Procedures PostgreSQL.
 # ============================================================
 
-from __future__ import annotations
-
-import uuid
 from datetime import date
-
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+import uuid
+import asyncpg
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.dto.common import PaginatedResponse
 from app.application.dto.tour import (
-    CreateTourRequest,
-    TourFilterParams,
+    ActivityResponse,
+    ItineraryResponse,
+    TourCreate,
     TourListResponse,
     TourResponse,
-    UpdateTourRequest,
+    TourUpdate,
 )
-from app.application.services.audit_service import AuditService
-from app.core.exceptions import (
-    BadRequestError,
-    ConflictError,
-    ForbiddenError,
-    NotFoundError,
-    ValidationError,
-)
-from app.domain.entities.tour import Itinerary, ItineraryActivity, Tour
-from app.domain.value_objects.enums import AuditAction, TourStatus
+from app.core.exceptions import BadRequestError, NotFoundError
 from app.infrastructure.repositories.tour_repository import TourRepository
 
 
+def _to_tour_list_item(row: dict) -> TourListResponse:
+    """Chuyển đổi bản ghi tóm tắt sang TourListResponse DTO."""
+    return TourListResponse(
+        id=row.get("tour_id") or row.get("id"),
+        tour_code=row["tour_code"],
+        title=row["title"],
+        category=row.get("category"),
+        destination=row["destination"],
+        base_price_adult=float(row["base_price_adult"]),
+        base_price_child=float(row["base_price_child"]),
+        max_participants=row["max_participants"],
+        available_slots=row["available_slots"],
+        start_date=row["start_date"],
+        end_date=row["end_date"],
+        status=row["status"],
+        created_at=row["created_at"],
+    )
+
+
+def _to_tour_detail(tour_dict: dict) -> TourResponse:
+    """Chuyển đổi bản ghi chi tiết kèm lịch trình sang TourResponse DTO."""
+    itins = []
+    for i in tour_dict.get("itineraries", []):
+        acts = [
+            ActivityResponse(
+                id=a["id"],
+                time_slot=a.get("time_slot"),
+                place_name=a["place_name"],
+                description=a.get("description"),
+            )
+            for a in i.get("activities", [])
+        ]
+        itins.append(
+            ItineraryResponse(
+                id=i["id"],
+                day_number=i["day_number"],
+                title=i["title"],
+                activities=acts,
+            )
+        )
+
+    return TourResponse(
+        id=tour_dict.get("tour_id") or tour_dict.get("id"),
+        tour_code=tour_dict["tour_code"],
+        title=tour_dict["title"],
+        description=tour_dict.get("description"),
+        category=tour_dict.get("category"),
+        destination=tour_dict["destination"],
+        base_price_adult=float(tour_dict["base_price_adult"]),
+        base_price_child=float(tour_dict["base_price_child"]),
+        max_participants=tour_dict["max_participants"],
+        available_slots=tour_dict["available_slots"],
+        start_date=tour_dict["start_date"],
+        end_date=tour_dict["end_date"],
+        status=tour_dict["status"],
+        created_by=tour_dict.get("created_by"),
+        itineraries=itins,
+        created_at=tour_dict["created_at"],
+        updated_at=tour_dict["updated_at"],
+    )
+
+
 class TourService:
-    """Business logic for Tour management."""
+    """Nghiệp vụ quản lý Tour du lịch."""
 
-    def __init__(self, session: AsyncSession):
-        self._session = session
-        self._repo = TourRepository(session)
-        self._audit = AuditService(session)
+    def __init__(self, conn: asyncpg.Connection):
+        self._conn = conn
+        self._repo = TourRepository(conn)
 
-    # --------------- Helpers ---------------
-
-    async def _generate_tour_code(self) -> str:
-        """Generate a unique tour code like TOUR-A1B2C3."""
-        for _ in range(10):
-            code = f"TOUR-{uuid.uuid4().hex[:6].upper()}"
-            if not await self._repo.code_exists(code):
-                return code
-        raise ConflictError("Unable to generate unique tour code, please try again")
-
-    async def _get_tour_or_404(self, tour_id: uuid.UUID) -> Tour:
-        """Get tour by ID or raise NotFoundError."""
-        tour = await self._repo.get_by_id(tour_id)
-        if not tour:
-            raise NotFoundError("Tour", tour_id)
-        return tour
-
-    @staticmethod
-    def _validate_dates(start_date: date, end_date: date) -> None:
-        """Validate that end_date is after start_date."""
-        if end_date <= start_date:
-            raise ValidationError(
-                "end_date must be after start_date",
-                details={"start_date": str(start_date), "end_date": str(end_date)},
-            )
-
-    # --------------- Create ---------------
-
-    async def create_tour(
+    async def search_tours(
         self,
-        data: CreateTourRequest,
         *,
-        created_by: uuid.UUID,
-        ip_address: str | None = None,
-    ) -> TourResponse:
-        """Create a new tour with itineraries and activities."""
-        # Generate unique tour code
-        tour_code = await self._generate_tour_code()
-
-        # Create tour entity
-        tour = Tour(
-            tour_code=tour_code,
-            title=data.title,
-            description=data.description,
-            category=data.category,
-            tags=data.tags,
-            destination=data.destination,
-            base_price_adult=float(data.base_price_adult),
-            base_price_child=float(data.base_price_child),
-            max_participants=data.max_participants,
-            available_slots=data.max_participants,
-            start_date=data.start_date,
-            end_date=data.end_date,
-            status=TourStatus.DRAFT.value,
-            created_by=created_by,
-        )
-        await self._repo.create(tour)
-
-        # Create itineraries and activities
-        for itin_data in data.itineraries:
-            itinerary = Itinerary(
-                tour_id=tour.id,
-                day_number=itin_data.day_number,
-                title=itin_data.title,
-            )
-            await self._repo.add_itinerary(itinerary)
-
-            for act_data in itin_data.activities:
-                activity = ItineraryActivity(
-                    itinerary_id=itinerary.id,
-                    time=act_data.time,
-                    place_name=act_data.place_name,
-                    latitude=act_data.latitude,
-                    longitude=act_data.longitude,
-                    description=act_data.description,
-                )
-                await self._repo.add_activity(activity)
-
-        await self._session.commit()
-
-        # Audit
-        await self._audit.log(
-            user_id=created_by,
-            action=AuditAction.TOUR_CREATED.value,
-            resource="Tour",
-            resource_id=tour.id,
-            details={"tour_code": tour_code, "title": data.title},
-            ip_address=ip_address,
-        )
-
-        # Reload with relationships
-        tour = await self._repo.get_by_id(tour.id)
-        logger.info("Tour created: {} ({})", tour.title, tour.tour_code)
-        return TourResponse.model_validate(tour)
-
-    # --------------- Read ---------------
-
-    async def get_tour(self, tour_id: uuid.UUID) -> TourResponse:
-        """Get a single tour by ID."""
-        tour = await self._get_tour_or_404(tour_id)
-        return TourResponse.model_validate(tour)
-
-    async def list_tours(
-        self,
-        filters: TourFilterParams,
-        *,
+        destination: Optional[str] = None,
+        category: Optional[str] = None,
+        status: Optional[str] = "PUBLISHED",  # Mặc định khách chỉ thấy tour đang mở bán
+        min_price: Optional[Decimal] = None,
+        max_price: Optional[Decimal] = None,
+        start_date_from: Optional[date] = None,
+        start_date_to: Optional[date] = None,
+        search: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
         page: int = 1,
         page_size: int = 20,
     ) -> PaginatedResponse[TourListResponse]:
-        """List tours with search/filter/pagination."""
+        """Tìm kiếm, lọc danh sách tour với phân trang."""
         skip = (page - 1) * page_size
-        tours, total = await self._repo.get_all(
+        rows, total = await self._repo.search_tours(
+            destination=destination,
+            category=category,
+            status=status,
+            min_price=min_price,
+            max_price=max_price,
+            start_date_from=start_date_from,
+            start_date_to=start_date_to,
+            search=search,
+            sort_by=sort_by,
+            sort_order=sort_order,
             skip=skip,
             limit=page_size,
-            destination=filters.destination,
-            category=filters.category,
-            status=filters.status,
-            min_price=filters.min_price,
-            max_price=filters.max_price,
-            start_date_from=filters.start_date_from,
-            start_date_to=filters.start_date_to,
-            search=filters.search,
-            sort_by=filters.sort_by,
-            sort_order=filters.sort_order,
         )
 
-        items = [TourListResponse.model_validate(t) for t in tours]
+        items = [_to_tour_list_item(r) for r in rows]
         return PaginatedResponse.create(
             items=items,
             total=total,
@@ -175,176 +135,115 @@ class TourService:
             page_size=page_size,
         )
 
-    # --------------- Update ---------------
+    async def get_tour(self, tour_id: uuid.UUID) -> TourResponse:
+        """Lấy chi tiết một tour kèm lịch trình các ngày."""
+        tour = await self._repo.get_by_id(tour_id)
+        if not tour:
+            raise NotFoundError("Tour", tour_id)
+        return _to_tour_detail(tour)
+
+    async def create_tour(
+        self,
+        data: TourCreate,
+        created_by: uuid.UUID,
+        ip_address: Optional[str] = None,
+    ) -> TourResponse:
+        """
+        Tạo tour mới và toàn bộ lịch trình, hoạt động đi kèm trong một transaction.
+        """
+        if data.end_date <= data.start_date:
+            raise BadRequestError("Ngày kết thúc tour phải sau ngày khởi hành")
+
+        # 1. Gọi stored procedure tạo Tour
+        new_tour = await self._repo.create_tour(
+            title=data.title,
+            description=data.description or "",
+            category=data.category or "Chung",
+            destination=data.destination,
+            base_price_adult=data.base_price_adult,
+            base_price_child=data.base_price_child,
+            max_participants=data.max_participants,
+            start_date=data.start_date,
+            end_date=data.end_date,
+            created_by=created_by,
+            ip_address=ip_address,
+        )
+
+        tour_id = new_tour["tour_id"]
+
+        # 2. Thêm lịch trình từng ngày nếu có
+        for itin in data.itineraries:
+            saved_itin = await self._repo.add_itinerary(
+                tour_id=tour_id,
+                day_number=itin.day_number,
+                title=itin.title,
+            )
+            itin_id = saved_itin["itinerary_id"]
+
+            for act in itin.activities:
+                await self._repo.add_activity(
+                    itinerary_id=itin_id,
+                    time_slot=act.time_slot,
+                    place_name=act.place_name,
+                    description=act.description,
+                )
+
+        logger.info("Đã tạo tour mới: {} (Mã: {})", data.title, new_tour.get("tour_code"))
+        return await self.get_tour(tour_id)
 
     async def update_tour(
         self,
         tour_id: uuid.UUID,
-        data: UpdateTourRequest,
-        *,
-        updated_by: uuid.UUID,
-        ip_address: str | None = None,
+        data: TourUpdate,
+        user_id: uuid.UUID,
+        ip_address: Optional[str] = None,
     ) -> TourResponse:
-        """Update a tour's details."""
-        tour = await self._get_tour_or_404(tour_id)
-
-        # Only DRAFT tours can be fully edited
-        if tour.status not in (TourStatus.DRAFT.value, TourStatus.PUBLISHED.value):
-            raise BadRequestError(
-                f"Cannot update tour in '{tour.status}' status"
-            )
-
-        # Apply partial updates
-        update_data = data.model_dump(exclude_unset=True)
-        changes = {}
-
-        for field, value in update_data.items():
-            old_value = getattr(tour, field, None)
-            if old_value != value:
-                setattr(tour, field, value)
-                changes[field] = {"old": str(old_value), "new": str(value)}
-
-        if not changes:
-            return TourResponse.model_validate(tour)
-
-        # Validate dates if either changed
-        start = data.start_date or tour.start_date
-        end = data.end_date or tour.end_date
-        self._validate_dates(start, end)
-
-        # Validate available_slots vs max_participants
-        if data.max_participants is not None:
-            booked = tour.max_participants - tour.available_slots
-            if data.max_participants < booked:
-                raise ValidationError(
-                    f"Cannot reduce max_participants below {booked} (already booked)"
-                )
-            tour.available_slots = data.max_participants - booked
-
-        await self._repo.update(tour)
-        await self._session.commit()
-
-        # Audit
-        await self._audit.log(
-            user_id=updated_by,
-            action=AuditAction.TOUR_UPDATED.value,
-            resource="Tour",
-            resource_id=tour.id,
-            details=changes,
+        """Cập nhật thông tin cơ bản của tour."""
+        updated = await self._repo.update_tour(
+            tour_id=tour_id,
+            title=data.title,
+            description=data.description,
+            category=data.category,
+            destination=data.destination,
+            base_price_adult=data.base_price_adult,
+            base_price_child=data.base_price_child,
+            max_participants=data.max_participants,
+            start_date=data.start_date,
+            end_date=data.end_date,
+            user_id=user_id,
             ip_address=ip_address,
         )
+        if not updated:
+            raise NotFoundError("Tour", tour_id)
 
-        tour = await self._repo.get_by_id(tour.id)
-        logger.info("Tour updated: {} ({})", tour.title, tour.tour_code)
-        return TourResponse.model_validate(tour)
-
-    # --------------- Delete (Archive) ---------------
-
-    async def delete_tour(
-        self,
-        tour_id: uuid.UUID,
-        *,
-        deleted_by: uuid.UUID,
-        ip_address: str | None = None,
-    ) -> None:
-        """Archive a tour (soft delete — set status to ARCHIVED)."""
-        tour = await self._get_tour_or_404(tour_id)
-
-        if tour.status == TourStatus.ARCHIVED.value:
-            raise BadRequestError("Tour is already archived")
-
-        # Check if there are confirmed bookings (placeholder for future)
-        booked = tour.max_participants - tour.available_slots
-        if booked > 0 and tour.status == TourStatus.PUBLISHED.value:
-            raise BadRequestError(
-                f"Cannot archive tour with {booked} active bookings. Cancel bookings first."
-            )
-
-        tour.status = TourStatus.ARCHIVED.value
-        await self._repo.update(tour)
-        await self._session.commit()
-
-        # Audit
-        await self._audit.log(
-            user_id=deleted_by,
-            action=AuditAction.TOUR_DELETED.value,
-            resource="Tour",
-            resource_id=tour.id,
-            details={"tour_code": tour.tour_code},
-            ip_address=ip_address,
-        )
-        logger.info("Tour archived: {} ({})", tour.title, tour.tour_code)
-
-    # --------------- Publish ---------------
+        return await self.get_tour(tour_id)
 
     async def publish_tour(
         self,
         tour_id: uuid.UUID,
-        *,
-        published_by: uuid.UUID,
-        ip_address: str | None = None,
+        user_id: uuid.UUID,
+        ip_address: Optional[str] = None,
     ) -> TourResponse:
-        """Publish a tour — transition DRAFT → PUBLISHED."""
-        tour = await self._get_tour_or_404(tour_id)
+        """Xuất bản tour (DRAFT -> PUBLISHED)."""
+        await self._repo.publish_tour(tour_id, user_id, ip_address)
+        return await self.get_tour(tour_id)
 
-        if tour.status != TourStatus.DRAFT.value:
-            raise BadRequestError(
-                f"Only DRAFT tours can be published. Current status: {tour.status}"
-            )
-
-        # Validate tour is complete enough to publish
-        if tour.max_participants <= 0:
-            raise ValidationError("Tour must have max_participants > 0 to publish")
-        if tour.start_date <= date.today():
-            raise ValidationError("Tour start_date must be in the future to publish")
-
-        tour.status = TourStatus.PUBLISHED.value
-        await self._repo.update(tour)
-        await self._session.commit()
-
-        # Audit
-        await self._audit.log(
-            user_id=published_by,
-            action=AuditAction.TOUR_PUBLISHED.value,
-            resource="Tour",
-            resource_id=tour.id,
-            details={"tour_code": tour.tour_code},
-            ip_address=ip_address,
-        )
-
-        tour = await self._repo.get_by_id(tour.id)
-        logger.info("Tour published: {} ({})", tour.title, tour.tour_code)
-        return TourResponse.model_validate(tour)
-
-    # --------------- Cancel ---------------
+    async def close_tour(
+        self,
+        tour_id: uuid.UUID,
+        user_id: uuid.UUID,
+        ip_address: Optional[str] = None,
+    ) -> TourResponse:
+        """Đóng tour (PUBLISHED -> ARCHIVED)."""
+        await self._repo.close_tour(tour_id, user_id, ip_address)
+        return await self.get_tour(tour_id)
 
     async def cancel_tour(
         self,
         tour_id: uuid.UUID,
-        *,
-        cancelled_by: uuid.UUID,
-        ip_address: str | None = None,
+        user_id: uuid.UUID,
+        ip_address: Optional[str] = None,
     ) -> TourResponse:
-        """Cancel a tour — any status → CANCELLED."""
-        tour = await self._get_tour_or_404(tour_id)
-
-        if tour.status == TourStatus.CANCELLED.value:
-            raise BadRequestError("Tour is already cancelled")
-
-        tour.status = TourStatus.CANCELLED.value
-        await self._repo.update(tour)
-        await self._session.commit()
-
-        # Audit
-        await self._audit.log(
-            user_id=cancelled_by,
-            action=AuditAction.TOUR_DELETED.value,
-            resource="Tour",
-            resource_id=tour.id,
-            details={"tour_code": tour.tour_code, "action": "CANCELLED"},
-            ip_address=ip_address,
-        )
-
-        tour = await self._repo.get_by_id(tour.id)
-        logger.info("Tour cancelled: {} ({})", tour.title, tour.tour_code)
-        return TourResponse.model_validate(tour)
+        """Hủy tour (-> CANCELLED)."""
+        await self._repo.cancel_tour(tour_id, user_id, ip_address)
+        return await self.get_tour(tour_id)

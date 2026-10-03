@@ -1,51 +1,61 @@
 # ============================================================
-# Travel Booking System — User Management Service
+# Travel Booking System — Service: Quản lý người dùng (User Service)
 # ============================================================
-# Admin-only operations: list users, update, deactivate, manage roles.
+# Tầng nghiệp vụ quản trị người dùng: Danh sách, phân quyền, cập nhật profile.
+# Dành cho Quản trị viên (Admin) hoặc cập nhật tài khoản cá nhân.
 # ============================================================
-
-from __future__ import annotations
 
 import uuid
-
+from typing import Optional
+import asyncpg
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.dto.common import PaginatedResponse
 from app.application.dto.user import (
     AssignRoleRequest,
-    UpdateUserRequest,
     UserResponse,
+    UserUpdateRequest,
 )
 from app.application.services.audit_service import AuditService
-from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
-from app.domain.value_objects.enums import AuditAction
+from app.core.exceptions import NotFoundError
 from app.infrastructure.repositories.user_repository import UserRepository
 
 
-class UserService:
-    """User management service (Admin operations)."""
+def _to_user_response(data: dict) -> UserResponse:
+    return UserResponse(
+        id=data.get("user_id") or data.get("id"),
+        email=data["email"],
+        full_name=data["full_name"],
+        phone_number=data.get("phone_number"),
+        is_active=data["is_active"],
+        roles=list(data.get("role_names") or data.get("roles") or []),
+        created_at=data["created_at"],
+    )
 
-    def __init__(self, session: AsyncSession):
-        self._session = session
-        self._user_repo = UserRepository(session)
-        self._audit = AuditService(session)
+
+class UserService:
+    """Nghiệp vụ quản lý thông tin và phân quyền người dùng."""
+
+    def __init__(self, conn: asyncpg.Connection):
+        self._conn = conn
+        self._user_repo = UserRepository(conn)
+        self._audit = AuditService(conn)
 
     async def list_users(
         self,
         *,
         page: int = 1,
         page_size: int = 20,
-        is_active: bool | None = None,
+        is_active: Optional[bool] = None,
     ) -> PaginatedResponse[UserResponse]:
-        """List all users with pagination (Admin only)."""
+        """Lấy danh sách người dùng phân trang (Admin)."""
         skip = (page - 1) * page_size
         users, total = await self._user_repo.get_all(
             skip=skip,
             limit=page_size,
             is_active=is_active,
         )
-        items = [UserResponse.model_validate(u) for u in users]
+        items = [_to_user_response(u) for u in users]
         return PaginatedResponse.create(
             items=items,
             total=total,
@@ -54,117 +64,52 @@ class UserService:
         )
 
     async def get_user(self, user_id: uuid.UUID) -> UserResponse:
-        """Get a single user by ID."""
+        """Lấy thông tin một người dùng theo ID."""
         user = await self._user_repo.get_by_id(user_id)
         if not user:
             raise NotFoundError("User", user_id)
-        return UserResponse.model_validate(user)
+        return _to_user_response(user)
 
-    async def update_user(
+    async def update_profile(
         self,
         user_id: uuid.UUID,
-        data: UpdateUserRequest,
-        *,
-        admin_id: uuid.UUID,
-        ip_address: str | None = None,
+        data: UserUpdateRequest,
     ) -> UserResponse:
-        """Update user profile (Admin only)."""
+        """Cập nhật thông tin tài khoản cá nhân."""
         user = await self._user_repo.get_by_id(user_id)
         if not user:
             raise NotFoundError("User", user_id)
 
-        # Check email conflict
-        if data.email and data.email != user.email:
-            if await self._user_repo.email_exists(data.email):
-                raise ConflictError(f"Email '{data.email}' is already in use")
-            user.email = data.email
-
-        if data.full_name is not None:
-            user.full_name = data.full_name
-        if data.is_active is not None:
-            user.is_active = data.is_active
-
-        await self._user_repo.update(user)
-
-        # Audit
-        action = AuditAction.USER_DEACTIVATED if data.is_active is False else AuditAction.USER_UPDATED
-        await self._audit.log(
-            user_id=admin_id,
-            action=action.value,
-            resource="users",
-            resource_id=user_id,
-            ip_address=ip_address,
+        updated = await self._user_repo.update_profile(
+            user_id=user_id,
+            full_name=data.full_name,
+            phone_number=data.phone_number,
         )
+        # Giữ nguyên roles từ user hiện tại
+        if updated:
+            updated["role_names"] = user.get("role_names", [])
 
-        logger.info("User updated | user_id={} by admin_id={}", user_id, admin_id)
-        return UserResponse.model_validate(user)
+        return _to_user_response(updated or user)
 
     async def assign_role(
         self,
         user_id: uuid.UUID,
         data: AssignRoleRequest,
-        *,
         admin_id: uuid.UUID,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> UserResponse:
-        """Assign a role to a user (Admin only)."""
+        """Gán vai trò mới cho người dùng (Chỉ dành cho Admin)."""
         user = await self._user_repo.get_by_id(user_id)
         if not user:
             raise NotFoundError("User", user_id)
 
-        role = await self._user_repo.get_role_by_name(data.role_name.upper())
-        if not role:
-            raise BadRequestError(f"Role '{data.role_name}' does not exist")
-
-        if user.has_role(role.name):
-            raise ConflictError(f"User already has role '{role.name}'")
-
-        await self._user_repo.assign_role(user, role)
-
-        # Audit
-        await self._audit.log(
-            user_id=admin_id,
-            action=AuditAction.ROLE_ASSIGNED.value,
-            resource="users",
-            resource_id=user_id,
-            details={"role": role.name},
-            ip_address=ip_address,
+        result = await self._user_repo.assign_role(
+            user_id=user_id,
+            role_name=data.role_name,
+            admin_id=admin_id,
         )
 
-        logger.info("Role '{}' assigned to user_id={}", role.name, user_id)
-        return UserResponse.model_validate(user)
-
-    async def remove_role(
-        self,
-        user_id: uuid.UUID,
-        data: AssignRoleRequest,
-        *,
-        admin_id: uuid.UUID,
-        ip_address: str | None = None,
-    ) -> UserResponse:
-        """Remove a role from a user (Admin only)."""
-        user = await self._user_repo.get_by_id(user_id)
-        if not user:
-            raise NotFoundError("User", user_id)
-
-        role = await self._user_repo.get_role_by_name(data.role_name.upper())
-        if not role:
-            raise BadRequestError(f"Role '{data.role_name}' does not exist")
-
-        if not user.has_role(role.name):
-            raise BadRequestError(f"User does not have role '{role.name}'")
-
-        await self._user_repo.remove_role(user, role)
-
-        # Audit
-        await self._audit.log(
-            user_id=admin_id,
-            action=AuditAction.ROLE_REMOVED.value,
-            resource="users",
-            resource_id=user_id,
-            details={"role": role.name},
-            ip_address=ip_address,
-        )
-
-        logger.info("Role '{}' removed from user_id={}", role.name, user_id)
-        return UserResponse.model_validate(user)
+        logger.info("Admin {} đã gán vai trò {} cho user {}", admin_id, data.role_name, user_id)
+        # Lấy lại thông tin user mới nhất
+        refreshed = await self._user_repo.get_by_id(user_id)
+        return _to_user_response(refreshed or user)

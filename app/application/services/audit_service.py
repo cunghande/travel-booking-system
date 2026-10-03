@@ -1,43 +1,36 @@
 # ============================================================
-# Travel Booking System — Audit Service
+# Travel Booking System — Service: Nhật ký hệ thống (Audit Service)
+# ============================================================
+# Ghi nhật ký truy vết các hành động quan trọng để kiểm toán và bảo mật.
 # ============================================================
 
-from __future__ import annotations
-
 import uuid
-from typing import Any
-
+from typing import Any, Dict, Optional
+import asyncpg
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.repositories.audit_repository import AuditRepository
 
 
 class AuditService:
-    """Service for recording audit trail entries."""
+    """Service ghi nhận audit trail cho toàn bộ hệ thống."""
 
-    def __init__(self, session: AsyncSession):
-        self._repo = AuditRepository(session)
+    def __init__(self, conn: asyncpg.Connection):
+        self._repo = AuditRepository(conn)
 
     async def log(
         self,
         *,
-        user_id: uuid.UUID | None,
+        user_id: Optional[uuid.UUID] = None,
         action: str,
-        resource: str | None = None,
+        resource: Optional[str] = None,
         resource_id: Any = None,
-        details: dict[str, Any] | None = None,
-        ip_address: str | None = None,
+        details: Optional[Dict[str, Any]] = None,
+        ip_address: Optional[str] = None,
     ) -> None:
         """
-        Record an audit log entry.
-
-        This should be called for sensitive actions:
-        - User registration / login
-        - Role assignment / removal
-        - Tour creation / update / deletion
-        - Booking operations
-        - Payment operations
+        Ghi một bản ghi nhật ký.
+        Không bao giờ để lỗi audit log làm gián đoạn luồng nghiệp vụ chính.
         """
         try:
             await self._repo.create(
@@ -49,11 +42,10 @@ class AuditService:
                 ip_address=ip_address,
             )
             logger.debug(
-                "Audit log | action={} resource={} resource_id={}",
+                "Audit log: action={} resource={} resource_id={}",
                 action,
                 resource,
                 resource_id,
             )
         except Exception as e:
-            # Audit logging should never break the main operation
-            logger.error("Failed to create audit log: {}", str(e))
+            logger.error("Không thể ghi audit log: {}", str(e))
