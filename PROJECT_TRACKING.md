@@ -116,7 +116,15 @@ Travel-Booking-System/
   - Modal xem chi tiết lịch trình từng ngày (Itinerary & Activities).
   - Modal Đặt tour trực tiếp: Thêm/bớt hành khách, tự động tính tổng tiền theo thời gian thực.
   - Modal Đăng nhập / Đăng ký và Drawer xem danh sách lịch sử đặt chỗ (`My Bookings`).
-- [x] **Tài liệu & Công cụ Test**
+- [x] **Kiến trúc Stored Procedures & Database Local (Sprint 3.5 - Stored Procedures Migration)**
+  - Toàn bộ cơ sở dữ liệu chuyển sang PostgreSQL Stored Procedures và Functions thuần trong thư mục `database/` (01_tao_database, 02_tao_bang, 03_tao_stored_procedures, 04_du_lieu_mau).
+  - Không dùng ORM: Kết nối bằng Connection Pool `asyncpg` thuần, bảo mật cao, kiểm soát chặt chẽ race condition với row locks `FOR UPDATE`.
+  - Tái cấu trúc Clean Architecture: DTOs Pydantic v2 thuần, Repositories, Services, Routers.
+- [x] **Trợ lý Du lịch Thông minh AI (AI Tour Recommendation)**
+  - Tích hợp endpoint `/api/v1/ai/recommend` tư vấn tour thông minh theo sở thích và ngân sách.
+  - Sẵn sàng mở rộng tích hợp Google Gemini hoặc OpenAI.
+- [x] **Tài liệu & Hướng dẫn Kết nối**
+  - Tài liệu chi tiết `HUONG_DAN_KET_NOI_FRONTEND_VA_AI.md` giải thích luồng kết nối Frontend - Backend và AI.
   - Collection Postman gồm **29 API mẫu** với kịch bản tự động lưu Bearer Token.
   - Tài liệu `HUONG_DAN_CHAY.md` chi tiết từ cài đặt đến chạy thử.
 
