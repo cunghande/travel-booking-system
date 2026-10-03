@@ -1,1251 +1,837 @@
 -- ============================================================
--- FILE: 03_tao_stored_procedures.sql
--- MỤC ĐÍCH: Tạo tất cả Stored Procedures (hàm) xử lý nghiệp vụ
+-- FILE: 03_tao_stored_procedures.sql (MySQL)
+-- MỤC ĐÍCH: Tạo toàn bộ Stored Procedures nghiệp vụ cho hệ thống đặt tour
+-- HỆ QUẢN TRỊ: MySQL 5.7+ / MySQL 8.0+ / MariaDB / XAMPP
 -- ============================================================
--- THUẬT NGỮ:
---   FUNCTION  = Hàm trả về giá trị (dùng SELECT)
---   PROCEDURE = Thủ tục không trả về giá trị (dùng CALL)
---   Trong PostgreSQL, ta dùng FUNCTION cho cả 2 vì linh hoạt hơn.
---
 -- HƯỚNG DẪN CHẠY:
---   psql -U postgres -p 8888 -d tour_booking_db -f 03_tao_stored_procedures.sql
+--   mysql -u root -p tour_booking_db < 03_tao_stored_procedures.sql
 -- ============================================================
 
+USE tour_booking_db;
+
+DELIMITER $$
 
 -- ████████████████████████████████████████████████████████████
--- PHẦN 1: HÀM XỬ LÝ TÀI KHOẢN & XÁC THỰC (AUTH)
+-- PHẦN 1: THỦ TỤC XÁC THỰC & NGƯỜI DÙNG (AUTH & USERS)
 -- ████████████████████████████████████████████████████████████
 
-
--- ============================================================
--- HÀM 1.1: Đăng ký tài khoản mới
--- ============================================================
--- Đầu vào: email, mật khẩu đã mã hóa, họ tên, số điện thoại
--- Đầu ra : Thông tin tài khoản vừa tạo (kèm vai trò CUSTOMER)
--- Logic  :
---   1. Kiểm tra email đã tồn tại chưa → nếu có thì báo lỗi
---   2. Tạo tài khoản mới trong bảng users
---   3. Gán vai trò CUSTOMER mặc định
---   4. Ghi nhật ký audit_logs
---   5. Trả về thông tin user
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_dang_ky_tai_khoan(
-    p_email           VARCHAR,      -- Email đăng ký
-    p_hashed_password VARCHAR,      -- Mật khẩu ĐÃ MÃ HÓA (bcrypt) - Python sẽ mã hóa trước khi gọi
-    p_full_name       VARCHAR,      -- Họ và tên
-    p_phone_number    VARCHAR DEFAULT NULL,  -- SĐT (tùy chọn)
-    p_ip_address      VARCHAR DEFAULT NULL   -- IP người đăng ký (ghi log)
+-- ------------------------------------------------------------
+-- 1.1: Đăng ký tài khoản mới (gán mặc định vai trò CUSTOMER)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_dang_ky_tai_khoan$$
+CREATE PROCEDURE sp_dang_ky_tai_khoan(
+    IN p_email           VARCHAR(255),
+    IN p_hashed_password VARCHAR(255),
+    IN p_full_name       VARCHAR(255),
+    IN p_phone_number    VARCHAR(20),
+    IN p_ip_address      VARCHAR(45)
 )
-RETURNS TABLE (
-    user_id     UUID,
-    email       VARCHAR,
-    full_name   VARCHAR,
-    phone_number VARCHAR,
-    is_active   BOOLEAN,
-    created_at  TIMESTAMPTZ,
-    role_names  TEXT[]           -- Mảng tên các vai trò (VD: {'CUSTOMER'})
-) AS $$
-DECLARE
-    v_user_id   UUID;           -- Biến lưu ID user vừa tạo
-    v_role_id   INTEGER;        -- Biến lưu ID của vai trò CUSTOMER
 BEGIN
-    -- Bước 1: Kiểm tra email trùng
-    IF EXISTS (SELECT 1 FROM users u WHERE u.email = p_email) THEN
-        RAISE EXCEPTION 'Email "%" đã được đăng ký trước đó', p_email
-            USING ERRCODE = '23505';  -- Mã lỗi unique_violation
+    DECLARE v_user_id CHAR(36);
+    DECLARE v_role_id INT;
+
+    -- Kiểm tra email trùng lặp
+    IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Email đã được đăng ký trong hệ thống trước đó';
     END IF;
 
-    -- Bước 2: Tạo tài khoản mới
-    INSERT INTO users (email, hashed_password, full_name, phone_number, is_active)
-    VALUES (p_email, p_hashed_password, p_full_name, p_phone_number, TRUE)
-    RETURNING id INTO v_user_id;
+    -- Sinh UUID mới cho người dùng
+    SET v_user_id = UUID();
 
-    -- Bước 3: Gán vai trò CUSTOMER
-    SELECT r.id INTO v_role_id FROM roles r WHERE r.name = 'CUSTOMER';
+    -- Tạo tài khoản mới
+    INSERT INTO users (id, email, hashed_password, full_name, phone_number, is_active, created_at)
+    VALUES (v_user_id, p_email, p_hashed_password, p_full_name, p_phone_number, 1, NOW());
+
+    -- Gán vai trò CUSTOMER
+    SELECT id INTO v_role_id FROM roles WHERE name = 'CUSTOMER' LIMIT 1;
     IF v_role_id IS NOT NULL THEN
         INSERT INTO user_roles (user_id, role_id) VALUES (v_user_id, v_role_id);
     END IF;
 
-    -- Bước 4: Ghi nhật ký
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address, details)
-    VALUES (v_user_id, 'USER_REGISTERED', 'users', v_user_id::TEXT, p_ip_address,
-            jsonb_build_object('email', p_email));
+    -- Ghi nhật ký
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), v_user_id, 'USER_REGISTERED', 'users', v_user_id, p_ip_address, NOW());
 
-    -- Bước 5: Trả về thông tin user kèm danh sách vai trò
-    RETURN QUERY
+    -- Trả về thông tin vừa tạo
     SELECT
-        u.id,
+        u.id AS user_id,
         u.email,
         u.full_name,
         u.phone_number,
         u.is_active,
         u.created_at,
-        ARRAY(
-            SELECT r.name FROM roles r
-            JOIN user_roles ur ON r.id = ur.role_id
-            WHERE ur.user_id = v_user_id
-        )::TEXT[] AS role_names
+        'CUSTOMER' AS role_names
     FROM users u
     WHERE u.id = v_user_id;
-END;
-$$ LANGUAGE plpgsql;
-
-COMMENT ON FUNCTION fn_dang_ky_tai_khoan IS 'Đăng ký tài khoản mới với vai trò CUSTOMER mặc định';
+END$$
 
 
--- ============================================================
--- HÀM 1.2: Lấy thông tin user theo email (dùng khi đăng nhập)
--- ============================================================
--- Python sẽ gọi hàm này để lấy hashed_password rồi so sánh bcrypt
--- Logic: Truy vấn user + danh sách vai trò theo email
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_user_theo_email(
-    p_email VARCHAR
+-- ------------------------------------------------------------
+-- 1.2: Lấy thông tin người dùng theo Email (dùng khi đăng nhập)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_user_theo_email$$
+CREATE PROCEDURE sp_lay_user_theo_email(
+    IN p_email VARCHAR(255)
 )
-RETURNS TABLE (
-    user_id         UUID,
-    email           VARCHAR,
-    hashed_password VARCHAR,
-    full_name       VARCHAR,
-    phone_number    VARCHAR,
-    is_active       BOOLEAN,
-    created_at      TIMESTAMPTZ,
-    role_names      TEXT[]
-) AS $$
 BEGIN
-    RETURN QUERY
     SELECT
-        u.id,
+        u.id AS user_id,
         u.email,
         u.hashed_password,
         u.full_name,
         u.phone_number,
         u.is_active,
         u.created_at,
-        ARRAY(
-            SELECT r.name FROM roles r
-            JOIN user_roles ur ON r.id = ur.role_id
-            WHERE ur.user_id = u.id
-        )::TEXT[] AS role_names
+        COALESCE(GROUP_CONCAT(r.name SEPARATOR ','), 'CUSTOMER') AS role_names
     FROM users u
-    WHERE u.email = p_email;
-END;
-$$ LANGUAGE plpgsql;
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN roles r ON ur.role_id = r.id
+    WHERE u.email = p_email
+    GROUP BY u.id, u.email, u.hashed_password, u.full_name, u.phone_number, u.is_active, u.created_at;
+END$$
 
-COMMENT ON FUNCTION fn_lay_user_theo_email IS 'Lấy thông tin user + roles theo email (dùng khi đăng nhập)';
 
-
--- ============================================================
--- HÀM 1.3: Lấy thông tin user theo ID
--- ============================================================
--- Dùng khi: xác thực JWT token, xem profile...
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_user_theo_id(
-    p_user_id UUID
+-- ------------------------------------------------------------
+-- 1.3: Lấy thông tin người dùng theo ID (UUID)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_user_theo_id$$
+CREATE PROCEDURE sp_lay_user_theo_id(
+    IN p_user_id CHAR(36)
 )
-RETURNS TABLE (
-    user_id         UUID,
-    email           VARCHAR,
-    full_name       VARCHAR,
-    phone_number    VARCHAR,
-    is_active       BOOLEAN,
-    created_at      TIMESTAMPTZ,
-    updated_at      TIMESTAMPTZ,
-    role_names      TEXT[]
-) AS $$
 BEGIN
-    RETURN QUERY
     SELECT
-        u.id,
+        u.id AS user_id,
         u.email,
         u.full_name,
         u.phone_number,
         u.is_active,
         u.created_at,
         u.updated_at,
-        ARRAY(
-            SELECT r.name FROM roles r
-            JOIN user_roles ur ON r.id = ur.role_id
-            WHERE ur.user_id = u.id
-        )::TEXT[] AS role_names
+        COALESCE(GROUP_CONCAT(r.name SEPARATOR ','), 'CUSTOMER') AS role_names
     FROM users u
-    WHERE u.id = p_user_id;
-END;
-$$ LANGUAGE plpgsql;
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN roles r ON ur.role_id = r.id
+    WHERE u.id = p_user_id
+    GROUP BY u.id, u.email, u.full_name, u.phone_number, u.is_active, u.created_at, u.updated_at;
+END$$
 
-COMMENT ON FUNCTION fn_lay_user_theo_id IS 'Lấy thông tin user + roles theo UUID';
 
-
--- ============================================================
--- HÀM 1.4: Ghi nhật ký đăng nhập
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_ghi_log_dang_nhap(
-    p_user_id    UUID,
-    p_ip_address VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 1.4: Ghi log đăng nhập
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_ghi_log_dang_nhap$$
+CREATE PROCEDURE sp_ghi_log_dang_nhap(
+    IN p_user_id    CHAR(36),
+    IN p_ip_address VARCHAR(45)
 )
-RETURNS VOID AS $$
 BEGIN
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address)
-    VALUES (p_user_id, 'USER_LOGIN', 'users', p_user_id::TEXT, p_ip_address);
-END;
-$$ LANGUAGE plpgsql;
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_user_id, 'USER_LOGIN', 'users', p_user_id, p_ip_address, NOW());
+END$$
 
 
--- ████████████████████████████████████████████████████████████
--- PHẦN 2: HÀM QUẢN LÝ NGƯỜI DÙNG (ADMIN)
--- ████████████████████████████████████████████████████████████
-
-
--- ============================================================
--- HÀM 2.1: Lấy danh sách tất cả người dùng (phân trang)
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_danh_sach_users(
-    p_skip   INTEGER DEFAULT 0,     -- Bỏ qua bao nhiêu dòng (phân trang)
-    p_limit  INTEGER DEFAULT 20,    -- Lấy tối đa bao nhiêu dòng
-    p_is_active BOOLEAN DEFAULT NULL -- Lọc theo trạng thái (NULL = tất cả)
+-- ------------------------------------------------------------
+-- 1.5: Lấy danh sách người dùng phân trang (Admin)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_danh_sach_users$$
+CREATE PROCEDURE sp_lay_danh_sach_users(
+    IN p_skip      INT,
+    IN p_limit     INT,
+    IN p_is_active INT  -- -1 = tất cả, 1 = active, 0 = inactive
 )
-RETURNS TABLE (
-    user_id         UUID,
-    email           VARCHAR,
-    full_name       VARCHAR,
-    phone_number    VARCHAR,
-    is_active       BOOLEAN,
-    created_at      TIMESTAMPTZ,
-    role_names      TEXT[],
-    total_count     BIGINT          -- Tổng số user (để tính phân trang)
-) AS $$
 BEGIN
-    RETURN QUERY
     SELECT
-        u.id,
+        u.id AS user_id,
         u.email,
         u.full_name,
         u.phone_number,
         u.is_active,
         u.created_at,
-        ARRAY(
-            SELECT r.name FROM roles r
-            JOIN user_roles ur ON r.id = ur.role_id
-            WHERE ur.user_id = u.id
-        )::TEXT[],
-        -- Đếm tổng số user thỏa mãn điều kiện lọc (dùng window function)
-        COUNT(*) OVER()::BIGINT AS total_count
+        COALESCE(GROUP_CONCAT(r.name SEPARATOR ','), '') AS role_names,
+        (SELECT COUNT(*) FROM users u2 WHERE (p_is_active = -1 OR u2.is_active = p_is_active)) AS total_count
     FROM users u
-    WHERE (p_is_active IS NULL OR u.is_active = p_is_active)
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN roles r ON ur.role_id = r.id
+    WHERE (p_is_active = -1 OR u.is_active = p_is_active)
+    GROUP BY u.id, u.email, u.full_name, u.phone_number, u.is_active, u.created_at
     ORDER BY u.created_at DESC
-    OFFSET p_skip
-    LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql;
+    LIMIT p_skip, p_limit;
+END$$
 
 
--- ============================================================
--- HÀM 2.2: Gán vai trò cho người dùng
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_gan_vai_tro(
-    p_user_id   UUID,       -- ID người dùng
-    p_role_name VARCHAR,    -- Tên vai trò cần gán (VD: 'STAFF')
-    p_admin_id  UUID DEFAULT NULL  -- Admin thực hiện (ghi log)
+-- ------------------------------------------------------------
+-- 1.6: Gán vai trò cho người dùng
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_gan_vai_tro$$
+CREATE PROCEDURE sp_gan_vai_tro(
+    IN p_user_id   CHAR(36),
+    IN p_role_name VARCHAR(50),
+    IN p_admin_id  CHAR(36)
 )
-RETURNS TABLE (
-    user_id    UUID,
-    email      VARCHAR,
-    full_name  VARCHAR,
-    role_names TEXT[]
-) AS $$
-DECLARE
-    v_role_id INTEGER;
 BEGIN
-    -- Tìm vai trò theo tên
-    SELECT r.id INTO v_role_id FROM roles r WHERE r.name = p_role_name;
+    DECLARE v_role_id INT;
+
+    SELECT id INTO v_role_id FROM roles WHERE name = p_role_name LIMIT 1;
     IF v_role_id IS NULL THEN
-        RAISE EXCEPTION 'Vai trò "%" không tồn tại trong hệ thống', p_role_name;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Vai trò yêu cầu không tồn tại';
     END IF;
 
-    -- Kiểm tra user tồn tại
-    IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p_user_id) THEN
-        RAISE EXCEPTION 'Không tìm thấy người dùng với ID "%"', p_user_id;
-    END IF;
-
-    -- Gán vai trò (bỏ qua nếu đã có)
-    INSERT INTO user_roles (user_id, role_id)
-    VALUES (p_user_id, v_role_id)
-    ON CONFLICT (user_id, role_id) DO NOTHING;
+    -- Thêm vai trò nếu chưa có
+    INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (p_user_id, v_role_id);
 
     -- Ghi nhật ký
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, details)
-    VALUES (p_admin_id, 'ROLE_ASSIGNED', 'users', p_user_id::TEXT,
-            jsonb_build_object('role', p_role_name));
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, created_at)
+    VALUES (UUID(), p_admin_id, 'ROLE_ASSIGNED', 'users', p_user_id, NOW());
 
-    -- Trả về thông tin user sau khi gán
-    RETURN QUERY
-    SELECT
-        u.id, u.email, u.full_name,
-        ARRAY(
-            SELECT r.name FROM roles r
-            JOIN user_roles ur ON r.id = ur.role_id
-            WHERE ur.user_id = u.id
-        )::TEXT[]
-    FROM users u WHERE u.id = p_user_id;
-END;
-$$ LANGUAGE plpgsql;
+    SELECT p_user_id AS user_id, p_role_name AS assigned_role;
+END$$
 
 
 -- ████████████████████████████████████████████████████████████
--- PHẦN 3: HÀM QUẢN LÝ TOUR DU LỊCH
+-- PHẦN 2: THỦ TỤC QUẢN LÝ TOUR DU LỊCH (TOURS)
 -- ████████████████████████████████████████████████████████████
 
-
--- ============================================================
--- HÀM 3.1: Tạo tour mới (trạng thái DRAFT)
--- ============================================================
--- Logic:
---   1. Sinh mã tour tự động (TOUR-XXXXXX)
---   2. Tạo bản ghi tour với trạng thái DRAFT
---   3. Ghi nhật ký
---   4. Trả về thông tin tour vừa tạo
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_tao_tour(
-    p_title             VARCHAR,
-    p_description       TEXT,
-    p_category          VARCHAR,
-    p_destination       VARCHAR,
-    p_base_price_adult  NUMERIC,
-    p_base_price_child  NUMERIC,
-    p_max_participants  INTEGER,
-    p_start_date        DATE,
-    p_end_date          DATE,
-    p_created_by        UUID,
-    p_ip_address        VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 2.1: Tạo tour mới (ở trạng thái DRAFT)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_tao_tour$$
+CREATE PROCEDURE sp_tao_tour(
+    IN p_title            VARCHAR(500),
+    IN p_description      TEXT,
+    IN p_category         VARCHAR(100),
+    IN p_destination      VARCHAR(255),
+    IN p_base_price_adult DECIMAL(12, 2),
+    IN p_base_price_child DECIMAL(12, 2),
+    IN p_max_participants INT,
+    IN p_start_date       DATE,
+    IN p_end_date         DATE,
+    IN p_created_by       CHAR(36),
+    IN p_ip_address       VARCHAR(45)
 )
-RETURNS TABLE (
-    tour_id           UUID,
-    tour_code         VARCHAR,
-    title             VARCHAR,
-    description       TEXT,
-    category          VARCHAR,
-    destination       VARCHAR,
-    base_price_adult  NUMERIC,
-    base_price_child  NUMERIC,
-    max_participants  INTEGER,
-    available_slots   INTEGER,
-    start_date        DATE,
-    end_date          DATE,
-    status            VARCHAR,
-    created_by        UUID,
-    created_at        TIMESTAMPTZ,
-    updated_at        TIMESTAMPTZ
-) AS $$
-DECLARE
-    v_tour_id   UUID;
-    v_tour_code VARCHAR;
 BEGIN
-    -- Bước 1: Sinh mã tour duy nhất
-    -- Lặp tối đa 10 lần để tránh trùng mã (xác suất trùng rất thấp)
-    FOR i IN 1..10 LOOP
-        v_tour_code := 'TOUR-' || UPPER(SUBSTR(md5(random()::text), 1, 6));
-        EXIT WHEN NOT EXISTS (SELECT 1 FROM tours t WHERE t.tour_code = v_tour_code);
-    END LOOP;
+    DECLARE v_tour_id   CHAR(36);
+    DECLARE v_tour_code VARCHAR(50);
 
-    -- Bước 2: Tạo tour
+    SET v_tour_id = UUID();
+    SET v_tour_code = CONCAT('TOUR-', UPPER(SUBSTRING(MD5(RAND()), 1, 6)));
+
     INSERT INTO tours (
-        tour_code, title, description, category, destination,
-        base_price_adult, base_price_child,
-        max_participants, available_slots,
-        start_date, end_date, status, created_by
+        id, tour_code, title, description, category, destination,
+        base_price_adult, base_price_child, max_participants, available_slots,
+        start_date, end_date, status, created_by, created_at, updated_at
     )
     VALUES (
-        v_tour_code, p_title, p_description, p_category, p_destination,
-        p_base_price_adult, p_base_price_child,
-        p_max_participants, p_max_participants,  -- Ban đầu available_slots = max_participants
-        p_start_date, p_end_date, 'DRAFT', p_created_by
-    )
-    RETURNING id INTO v_tour_id;
+        v_tour_id, v_tour_code, p_title, p_description, p_category, p_destination,
+        p_base_price_adult, p_base_price_child, p_max_participants, p_max_participants,
+        p_start_date, p_end_date, 'DRAFT', p_created_by, NOW(), NOW()
+    );
 
-    -- Bước 3: Ghi nhật ký
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address, details)
-    VALUES (p_created_by, 'TOUR_CREATED', 'tours', v_tour_id::TEXT, p_ip_address,
-            jsonb_build_object('tour_code', v_tour_code, 'title', p_title));
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_created_by, 'TOUR_CREATED', 'tours', v_tour_id, p_ip_address, NOW());
 
-    -- Bước 4: Trả về thông tin tour
-    RETURN QUERY
-    SELECT t.id, t.tour_code, t.title, t.description, t.category, t.destination,
-           t.base_price_adult, t.base_price_child,
-           t.max_participants, t.available_slots,
-           t.start_date, t.end_date, t.status, t.created_by,
-           t.created_at, t.updated_at
-    FROM tours t WHERE t.id = v_tour_id;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- ============================================================
--- HÀM 3.2: Thêm lịch trình 1 ngày cho tour
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_them_lich_trinh(
-    p_tour_id    UUID,
-    p_day_number INTEGER,
-    p_title      VARCHAR
-)
-RETURNS TABLE (
-    itinerary_id UUID,
-    tour_id      UUID,
-    day_number   INTEGER,
-    title        VARCHAR
-) AS $$
-DECLARE
-    v_id UUID;
-BEGIN
-    -- Kiểm tra tour tồn tại
-    IF NOT EXISTS (SELECT 1 FROM tours t WHERE t.id = p_tour_id) THEN
-        RAISE EXCEPTION 'Không tìm thấy tour với ID "%"', p_tour_id;
-    END IF;
-
-    INSERT INTO itineraries (tour_id, day_number, title)
-    VALUES (p_tour_id, p_day_number, p_title)
-    RETURNING id INTO v_id;
-
-    RETURN QUERY
-    SELECT i.id, i.tour_id, i.day_number, i.title
-    FROM itineraries i WHERE i.id = v_id;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- ============================================================
--- HÀM 3.3: Thêm hoạt động vào lịch trình
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_them_hoat_dong(
-    p_itinerary_id UUID,
-    p_time_slot    TIME,
-    p_place_name   VARCHAR,
-    p_description  TEXT DEFAULT NULL,
-    p_latitude     DOUBLE PRECISION DEFAULT NULL,
-    p_longitude    DOUBLE PRECISION DEFAULT NULL
-)
-RETURNS TABLE (
-    activity_id  UUID,
-    itinerary_id UUID,
-    time_slot    TIME,
-    place_name   VARCHAR,
-    description  TEXT
-) AS $$
-DECLARE
-    v_id UUID;
-BEGIN
-    INSERT INTO itinerary_activities (itinerary_id, time_slot, place_name, description, latitude, longitude)
-    VALUES (p_itinerary_id, p_time_slot, p_place_name, p_description, p_latitude, p_longitude)
-    RETURNING id INTO v_id;
-
-    RETURN QUERY
-    SELECT a.id, a.itinerary_id, a.time_slot, a.place_name, a.description
-    FROM itinerary_activities a WHERE a.id = v_id;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- ============================================================
--- HÀM 3.4: Lấy chi tiết tour (kèm lịch trình + hoạt động)
--- ============================================================
--- Trả về thông tin tour kèm số chỗ thực tế còn trống
--- (tính bằng cách đếm tổng booking chưa hủy)
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_chi_tiet_tour(
-    p_tour_id UUID
-)
-RETURNS TABLE (
-    tour_id           UUID,
-    tour_code         VARCHAR,
-    title             VARCHAR,
-    description       TEXT,
-    category          VARCHAR,
-    destination       VARCHAR,
-    base_price_adult  NUMERIC,
-    base_price_child  NUMERIC,
-    max_participants  INTEGER,
-    available_slots   INTEGER,
-    booked_seats      INTEGER,    -- Số chỗ đã đặt (chưa hủy)
-    start_date        DATE,
-    end_date          DATE,
-    status            VARCHAR,
-    created_by        UUID,
-    created_at        TIMESTAMPTZ,
-    updated_at        TIMESTAMPTZ
-) AS $$
-BEGIN
-    RETURN QUERY
     SELECT
-        t.id, t.tour_code, t.title, t.description, t.category, t.destination,
-        t.base_price_adult, t.base_price_child,
-        t.max_participants, t.available_slots,
-        -- Tính số chỗ đã đặt = SUM(người lớn + trẻ em) của các booking chưa hủy
-        COALESCE((
-            SELECT SUM(b.num_adults + b.num_children)::INTEGER
-            FROM bookings b
-            WHERE b.tour_id = t.id
-            AND b.status IN ('PENDING_PAYMENT', 'CONFIRMED')
-        ), 0)::INTEGER AS booked_seats,
-        t.start_date, t.end_date, t.status, t.created_by,
-        t.created_at, t.updated_at
+        t.id AS tour_id,
+        t.tour_code,
+        t.title,
+        t.description,
+        t.category,
+        t.destination,
+        t.base_price_adult,
+        t.base_price_child,
+        t.max_participants,
+        t.available_slots,
+        t.start_date,
+        t.end_date,
+        t.status,
+        t.created_by,
+        t.created_at,
+        t.updated_at
+    FROM tours t
+    WHERE t.id = v_tour_id;
+END$$
+
+
+-- ------------------------------------------------------------
+-- 2.2: Thêm ngày lịch trình cho Tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_them_lich_trinh$$
+CREATE PROCEDURE sp_them_lich_trinh(
+    IN p_tour_id    CHAR(36),
+    IN p_day_number INT,
+    IN p_title      VARCHAR(500)
+)
+BEGIN
+    DECLARE v_itin_id CHAR(36);
+    SET v_itin_id = UUID();
+
+    INSERT INTO itineraries (id, tour_id, day_number, title, created_at)
+    VALUES (v_itin_id, p_tour_id, p_day_number, p_title, NOW());
+
+    SELECT v_itin_id AS itinerary_id, p_tour_id AS tour_id, p_day_number AS day_number, p_title AS title;
+END$$
+
+
+-- ------------------------------------------------------------
+-- 2.3: Thêm hoạt động chi tiết trong ngày lịch trình
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_them_hoat_dong$$
+CREATE PROCEDURE sp_them_hoat_dong(
+    IN p_itinerary_id CHAR(36),
+    IN p_time_slot    TIME,
+    IN p_place_name   VARCHAR(255),
+    IN p_description  TEXT
+)
+BEGIN
+    DECLARE v_act_id CHAR(36);
+    SET v_act_id = UUID();
+
+    INSERT INTO itinerary_activities (id, itinerary_id, time_slot, place_name, description, created_at)
+    VALUES (v_act_id, p_itinerary_id, p_time_slot, p_place_name, p_description, NOW());
+
+    SELECT v_act_id AS activity_id, p_itinerary_id AS itinerary_id, p_time_slot AS time_slot, p_place_name AS place_name, p_description AS description;
+END$$
+
+
+-- ------------------------------------------------------------
+-- 2.4: Lấy chi tiết một Tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_chi_tiet_tour$$
+CREATE PROCEDURE sp_lay_chi_tiet_tour(
+    IN p_tour_id CHAR(36)
+)
+BEGIN
+    SELECT
+        t.id AS tour_id,
+        t.tour_code,
+        t.title,
+        t.description,
+        t.category,
+        t.destination,
+        t.base_price_adult,
+        t.base_price_child,
+        t.max_participants,
+        t.available_slots,
+        t.start_date,
+        t.end_date,
+        t.status,
+        t.created_by,
+        t.created_at,
+        t.updated_at
     FROM tours t
     WHERE t.id = p_tour_id;
-END;
-$$ LANGUAGE plpgsql;
+END$$
 
 
--- ============================================================
--- HÀM 3.5: Lấy lịch trình + hoạt động của 1 tour
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_lich_trinh_tour(p_tour_id UUID)
-RETURNS TABLE (
-    itinerary_id    UUID,
-    day_number      INTEGER,
-    itinerary_title VARCHAR,
-    activity_id     UUID,
-    time_slot       TIME,
-    place_name      VARCHAR,
-    activity_desc   TEXT
-) AS $$
+-- ------------------------------------------------------------
+-- 2.5: Lấy toàn bộ lịch trình và hoạt động của một Tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_lich_trinh_tour$$
+CREATE PROCEDURE sp_lay_lich_trinh_tour(
+    IN p_tour_id CHAR(36)
+)
 BEGIN
-    RETURN QUERY
     SELECT
-        i.id, i.day_number, i.title,
-        a.id, a.time_slot, a.place_name, a.description
+        i.id AS itinerary_id,
+        i.day_number,
+        i.title AS itinerary_title,
+        a.id AS activity_id,
+        a.time_slot,
+        a.place_name,
+        a.description AS activity_desc
     FROM itineraries i
     LEFT JOIN itinerary_activities a ON a.itinerary_id = i.id
     WHERE i.tour_id = p_tour_id
-    ORDER BY i.day_number, a.time_slot NULLS LAST;
-END;
-$$ LANGUAGE plpgsql;
+    ORDER BY i.day_number ASC, a.time_slot ASC;
+END$$
 
 
--- ============================================================
--- HÀM 3.6: Tìm kiếm và lọc danh sách tour (phân trang)
--- ============================================================
--- Hỗ trợ lọc theo: điểm đến, danh mục, trạng thái, khoảng giá,
--- ngày khởi hành, và tìm kiếm theo tên/mô tả.
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_tim_kiem_tour(
-    p_destination     VARCHAR DEFAULT NULL,    -- Lọc theo điểm đến
-    p_category        VARCHAR DEFAULT NULL,    -- Lọc theo danh mục
-    p_status          VARCHAR DEFAULT NULL,    -- Lọc theo trạng thái
-    p_min_price       NUMERIC DEFAULT NULL,    -- Giá tối thiểu
-    p_max_price       NUMERIC DEFAULT NULL,    -- Giá tối đa
-    p_start_date_from DATE DEFAULT NULL,       -- Ngày khởi hành từ
-    p_start_date_to   DATE DEFAULT NULL,       -- Ngày khởi hành đến
-    p_search          VARCHAR DEFAULT NULL,    -- Từ khóa tìm kiếm
-    p_sort_by         VARCHAR DEFAULT 'created_at',  -- Sắp xếp theo: price, start_date, created_at
-    p_sort_order      VARCHAR DEFAULT 'desc',        -- Thứ tự: asc, desc
-    p_skip            INTEGER DEFAULT 0,
-    p_limit           INTEGER DEFAULT 20
+-- ------------------------------------------------------------
+-- 2.6: Tìm kiếm và lọc danh sách Tour (phân trang)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_tim_kiem_tour$$
+CREATE PROCEDURE sp_tim_kiem_tour(
+    IN p_destination     VARCHAR(255),
+    IN p_category        VARCHAR(100),
+    IN p_status          VARCHAR(30),
+    IN p_min_price       DECIMAL(12, 2),
+    IN p_max_price       DECIMAL(12, 2),
+    IN p_start_date_from DATE,
+    IN p_start_date_to   DATE,
+    IN p_search          VARCHAR(255),
+    IN p_skip            INT,
+    IN p_limit           INT
 )
-RETURNS TABLE (
-    tour_id           UUID,
-    tour_code         VARCHAR,
-    title             VARCHAR,
-    category          VARCHAR,
-    destination       VARCHAR,
-    base_price_adult  NUMERIC,
-    base_price_child  NUMERIC,
-    max_participants  INTEGER,
-    available_slots   INTEGER,
-    start_date        DATE,
-    end_date          DATE,
-    status            VARCHAR,
-    created_at        TIMESTAMPTZ,
-    total_count       BIGINT       -- Tổng số tour thỏa mãn (dùng cho phân trang)
-) AS $$
 BEGIN
-    RETURN QUERY
+    -- Lấy danh sách tour kèm total_count bằng subquery
     SELECT
-        t.id, t.tour_code, t.title, t.category, t.destination,
-        t.base_price_adult, t.base_price_child,
-        t.max_participants, t.available_slots,
-        t.start_date, t.end_date, t.status, t.created_at,
-        COUNT(*) OVER()::BIGINT AS total_count
+        t.id AS tour_id,
+        t.tour_code,
+        t.title,
+        t.category,
+        t.destination,
+        t.base_price_adult,
+        t.base_price_child,
+        t.max_participants,
+        t.available_slots,
+        t.start_date,
+        t.end_date,
+        t.status,
+        t.created_at,
+        (
+            SELECT COUNT(*) FROM tours t2
+            WHERE (p_destination IS NULL OR t2.destination LIKE CONCAT('%', p_destination, '%'))
+              AND (p_category IS NULL OR t2.category = p_category)
+              AND (p_status IS NULL OR t2.status = p_status)
+              AND (p_min_price IS NULL OR t2.base_price_adult >= p_min_price)
+              AND (p_max_price IS NULL OR t2.base_price_adult <= p_max_price)
+              AND (p_start_date_from IS NULL OR t2.start_date >= p_start_date_from)
+              AND (p_start_date_to IS NULL OR t2.start_date <= p_start_date_to)
+              AND (p_search IS NULL OR t2.title LIKE CONCAT('%', p_search, '%') OR t2.description LIKE CONCAT('%', p_search, '%'))
+        ) AS total_count
     FROM tours t
-    WHERE
-        -- Lọc theo điểm đến (tìm kiếm gần đúng, không phân biệt hoa thường)
-        (p_destination IS NULL OR t.destination ILIKE '%' || p_destination || '%')
-        AND (p_category IS NULL OR t.category = p_category)
-        AND (p_status IS NULL OR t.status = p_status)
-        AND (p_min_price IS NULL OR t.base_price_adult >= p_min_price)
-        AND (p_max_price IS NULL OR t.base_price_adult <= p_max_price)
-        AND (p_start_date_from IS NULL OR t.start_date >= p_start_date_from)
-        AND (p_start_date_to IS NULL OR t.start_date <= p_start_date_to)
-        -- Tìm kiếm trong tên hoặc mô tả tour
-        AND (p_search IS NULL OR t.title ILIKE '%' || p_search || '%'
-             OR t.description ILIKE '%' || p_search || '%')
-    ORDER BY
-        -- Sắp xếp linh hoạt theo tham số
-        CASE WHEN p_sort_by = 'price' AND p_sort_order = 'asc' THEN t.base_price_adult END ASC,
-        CASE WHEN p_sort_by = 'price' AND p_sort_order = 'desc' THEN t.base_price_adult END DESC,
-        CASE WHEN p_sort_by = 'start_date' AND p_sort_order = 'asc' THEN t.start_date END ASC,
-        CASE WHEN p_sort_by = 'start_date' AND p_sort_order = 'desc' THEN t.start_date END DESC,
-        CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'asc' THEN t.created_at END ASC,
-        CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'desc' THEN t.created_at END DESC,
-        t.created_at DESC  -- Mặc định sắp xếp theo ngày tạo mới nhất
-    OFFSET p_skip
-    LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql;
+    WHERE (p_destination IS NULL OR t.destination LIKE CONCAT('%', p_destination, '%'))
+      AND (p_category IS NULL OR t.category = p_category)
+      AND (p_status IS NULL OR t.status = p_status)
+      AND (p_min_price IS NULL OR t.base_price_adult >= p_min_price)
+      AND (p_max_price IS NULL OR t.base_price_adult <= p_max_price)
+      AND (p_start_date_from IS NULL OR t.start_date >= p_start_date_from)
+      AND (p_start_date_to IS NULL OR t.start_date <= p_start_date_to)
+      AND (p_search IS NULL OR t.title LIKE CONCAT('%', p_search, '%') OR t.description LIKE CONCAT('%', p_search, '%'))
+    ORDER BY t.created_at DESC
+    LIMIT p_skip, p_limit;
+END$$
 
 
--- ============================================================
--- HÀM 3.7: Xuất bản tour (DRAFT → PUBLISHED)
--- ============================================================
--- Quy tắc:
---   - Chỉ tour ở trạng thái DRAFT mới được xuất bản
---   - Tour phải có ngày khởi hành trong tương lai
---   - Tour phải có max_participants > 0
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_xuat_ban_tour(
-    p_tour_id    UUID,
-    p_user_id    UUID,
-    p_ip_address VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 2.7: Cập nhật thông tin Tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_cap_nhat_tour$$
+CREATE PROCEDURE sp_cap_nhat_tour(
+    IN p_tour_id           CHAR(36),
+    IN p_title             VARCHAR(500),
+    IN p_description       TEXT,
+    IN p_category          VARCHAR(100),
+    IN p_destination       VARCHAR(255),
+    IN p_base_price_adult  DECIMAL(12, 2),
+    IN p_base_price_child  DECIMAL(12, 2),
+    IN p_max_participants  INT,
+    IN p_start_date        DATE,
+    IN p_end_date          DATE,
+    IN p_user_id           CHAR(36),
+    IN p_ip_address        VARCHAR(45)
 )
-RETURNS TABLE (
-    tour_id  UUID,
-    status   VARCHAR,
-    message  TEXT
-) AS $$
-DECLARE
-    v_current_status VARCHAR;
-    v_start_date     DATE;
-    v_max_part       INTEGER;
 BEGIN
-    -- Lấy thông tin hiện tại của tour
-    SELECT t.status, t.start_date, t.max_participants
-    INTO v_current_status, v_start_date, v_max_part
-    FROM tours t WHERE t.id = p_tour_id;
+    UPDATE tours
+    SET
+        title = COALESCE(p_title, title),
+        description = COALESCE(p_description, description),
+        category = COALESCE(p_category, category),
+        destination = COALESCE(p_destination, destination),
+        base_price_adult = COALESCE(p_base_price_adult, base_price_adult),
+        base_price_child = COALESCE(p_base_price_child, base_price_child),
+        max_participants = COALESCE(p_max_participants, max_participants),
+        start_date = COALESCE(p_start_date, start_date),
+        end_date = COALESCE(p_end_date, end_date),
+        updated_at = NOW()
+    WHERE id = p_tour_id;
 
-    -- Kiểm tra tour tồn tại
-    IF v_current_status IS NULL THEN
-        RAISE EXCEPTION 'Không tìm thấy tour với ID "%"', p_tour_id;
-    END IF;
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_user_id, 'TOUR_UPDATED', 'tours', p_tour_id, p_ip_address, NOW());
 
-    -- Kiểm tra trạng thái hiện tại phải là DRAFT
-    IF v_current_status != 'DRAFT' THEN
-        RAISE EXCEPTION 'Chỉ tour ở trạng thái DRAFT mới được xuất bản. Hiện tại: %', v_current_status;
-    END IF;
-
-    -- Kiểm tra ngày khởi hành phải ở tương lai
-    IF v_start_date <= CURRENT_DATE THEN
-        RAISE EXCEPTION 'Ngày khởi hành phải sau ngày hôm nay để xuất bản tour';
-    END IF;
-
-    -- Cập nhật trạng thái
-    UPDATE tours SET status = 'PUBLISHED' WHERE id = p_tour_id;
-
-    -- Ghi nhật ký
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address)
-    VALUES (p_user_id, 'TOUR_PUBLISHED', 'tours', p_tour_id::TEXT, p_ip_address);
-
-    RETURN QUERY SELECT p_tour_id, 'PUBLISHED'::VARCHAR, 'Tour đã được xuất bản thành công'::TEXT;
-END;
-$$ LANGUAGE plpgsql;
+    SELECT id AS tour_id, tour_code, title, status FROM tours WHERE id = p_tour_id;
+END$$
 
 
--- ============================================================
--- HÀM 3.8: Đóng tour (PUBLISHED → ARCHIVED)
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_dong_tour(
-    p_tour_id    UUID,
-    p_user_id    UUID,
-    p_ip_address VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 2.8: Xuất bản Tour (DRAFT -> PUBLISHED)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_xuat_ban_tour$$
+CREATE PROCEDURE sp_xuat_ban_tour(
+    IN p_tour_id    CHAR(36),
+    IN p_user_id    CHAR(36),
+    IN p_ip_address VARCHAR(45)
 )
-RETURNS TABLE (tour_id UUID, status VARCHAR, message TEXT) AS $$
-DECLARE
-    v_current_status VARCHAR;
-    v_booked INTEGER;
 BEGIN
-    SELECT t.status INTO v_current_status FROM tours t WHERE t.id = p_tour_id;
-
-    IF v_current_status IS NULL THEN
-        RAISE EXCEPTION 'Không tìm thấy tour với ID "%"', p_tour_id;
-    END IF;
-
-    IF v_current_status = 'ARCHIVED' THEN
-        RAISE EXCEPTION 'Tour đã được đóng (ARCHIVED) trước đó rồi';
-    END IF;
-
-    -- Kiểm tra booking đang hoạt động
-    SELECT COALESCE(SUM(b.num_adults + b.num_children), 0)::INTEGER
-    INTO v_booked
-    FROM bookings b WHERE b.tour_id = p_tour_id AND b.status IN ('PENDING_PAYMENT', 'CONFIRMED');
-
-    IF v_booked > 0 AND v_current_status = 'PUBLISHED' THEN
-        RAISE EXCEPTION 'Không thể đóng tour khi còn % chỗ đã đặt. Hãy hủy các đơn trước.', v_booked;
-    END IF;
-
-    UPDATE tours SET status = 'ARCHIVED' WHERE id = p_tour_id;
-
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address)
-    VALUES (p_user_id, 'TOUR_ARCHIVED', 'tours', p_tour_id::TEXT, p_ip_address);
-
-    RETURN QUERY SELECT p_tour_id, 'ARCHIVED'::VARCHAR, 'Tour đã được đóng thành công'::TEXT;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- ============================================================
--- HÀM 3.9: Hủy tour (bất kỳ trạng thái → CANCELLED)
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_huy_tour(
-    p_tour_id    UUID,
-    p_user_id    UUID,
-    p_ip_address VARCHAR DEFAULT NULL
-)
-RETURNS TABLE (tour_id UUID, status VARCHAR, message TEXT) AS $$
-DECLARE
-    v_current_status VARCHAR;
-BEGIN
-    SELECT t.status INTO v_current_status FROM tours t WHERE t.id = p_tour_id;
-
-    IF v_current_status IS NULL THEN
-        RAISE EXCEPTION 'Không tìm thấy tour với ID "%"', p_tour_id;
-    END IF;
-
-    IF v_current_status = 'CANCELLED' THEN
-        RAISE EXCEPTION 'Tour đã bị hủy trước đó rồi';
-    END IF;
-
-    UPDATE tours SET status = 'CANCELLED' WHERE id = p_tour_id;
-
-    -- Tự động hủy tất cả booking đang chờ của tour này
-    UPDATE bookings SET status = 'CANCELLED'
-    WHERE bookings.tour_id = p_tour_id AND bookings.status IN ('PENDING_PAYMENT');
-
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address, details)
-    VALUES (p_user_id, 'TOUR_CANCELLED', 'tours', p_tour_id::TEXT, p_ip_address,
-            jsonb_build_object('previous_status', v_current_status));
-
-    RETURN QUERY SELECT p_tour_id, 'CANCELLED'::VARCHAR, 'Tour đã bị hủy thành công'::TEXT;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- ============================================================
--- HÀM 3.10: Cập nhật thông tin tour
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_cap_nhat_tour(
-    p_tour_id           UUID,
-    p_title             VARCHAR DEFAULT NULL,
-    p_description       TEXT DEFAULT NULL,
-    p_category          VARCHAR DEFAULT NULL,
-    p_destination       VARCHAR DEFAULT NULL,
-    p_base_price_adult  NUMERIC DEFAULT NULL,
-    p_base_price_child  NUMERIC DEFAULT NULL,
-    p_max_participants  INTEGER DEFAULT NULL,
-    p_start_date        DATE DEFAULT NULL,
-    p_end_date          DATE DEFAULT NULL,
-    p_user_id           UUID DEFAULT NULL,
-    p_ip_address        VARCHAR DEFAULT NULL
-)
-RETURNS TABLE (
-    tour_id UUID, tour_code VARCHAR, title VARCHAR, status VARCHAR, message TEXT
-) AS $$
-DECLARE
-    v_status VARCHAR;
-BEGIN
-    SELECT t.status INTO v_status FROM tours t WHERE t.id = p_tour_id;
+    DECLARE v_status VARCHAR(30);
+    SELECT status INTO v_status FROM tours WHERE id = p_tour_id;
 
     IF v_status IS NULL THEN
-        RAISE EXCEPTION 'Không tìm thấy tour với ID "%"', p_tour_id;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tour không tồn tại';
     END IF;
 
-    IF v_status NOT IN ('DRAFT', 'PUBLISHED') THEN
-        RAISE EXCEPTION 'Không thể sửa tour ở trạng thái "%". Chỉ sửa được DRAFT hoặc PUBLISHED.', v_status;
-    END IF;
+    UPDATE tours SET status = 'PUBLISHED', updated_at = NOW() WHERE id = p_tour_id;
 
-    -- Cập nhật từng trường nếu có giá trị mới (NULL = giữ nguyên)
-    UPDATE tours SET
-        title = COALESCE(p_title, tours.title),
-        description = COALESCE(p_description, tours.description),
-        category = COALESCE(p_category, tours.category),
-        destination = COALESCE(p_destination, tours.destination),
-        base_price_adult = COALESCE(p_base_price_adult, tours.base_price_adult),
-        base_price_child = COALESCE(p_base_price_child, tours.base_price_child),
-        max_participants = COALESCE(p_max_participants, tours.max_participants),
-        start_date = COALESCE(p_start_date, tours.start_date),
-        end_date = COALESCE(p_end_date, tours.end_date)
-    WHERE id = p_tour_id;
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_user_id, 'TOUR_PUBLISHED', 'tours', p_tour_id, p_ip_address, NOW());
 
-    -- Ghi log
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address)
-    VALUES (p_user_id, 'TOUR_UPDATED', 'tours', p_tour_id::TEXT, p_ip_address);
-
-    RETURN QUERY
-    SELECT t.id, t.tour_code, t.title, t.status, 'Cập nhật tour thành công'::TEXT
-    FROM tours t WHERE t.id = p_tour_id;
-END;
-$$ LANGUAGE plpgsql;
+    SELECT p_tour_id AS tour_id, 'PUBLISHED' AS status, 'Xuất bản tour thành công' AS message;
+END$$
 
 
--- ████████████████████████████████████████████████████████████
--- PHẦN 4: HÀM QUẢN LÝ ĐẶT TOUR (BOOKING)
--- ████████████████████████████████████████████████████████████
-
-
--- ============================================================
--- HÀM 4.1: Tạo đơn đặt tour (HÀM QUAN TRỌNG NHẤT)
--- ============================================================
--- THUẬT TOÁN:
---   1. Kiểm tra tour tồn tại và đang mở bán (PUBLISHED)
---   2. Tính tổng số chỗ đã đặt (chưa hủy) trên tour
---   3. Kiểm tra còn đủ chỗ trống không
---   4. Tính tổng tiền: (số người lớn × giá người lớn) + (số trẻ em × giá trẻ em)
---   5. Sinh mã đặt tour duy nhất (BK-YYYYMMDD-XXXXXX)
---   6. Lưu đơn đặt tour vào bảng bookings
---   7. Ghi nhật ký
---   8. Trả về thông tin đơn vừa tạo
---
--- BẢO MẬT: Toàn bộ logic kiểm tra chỗ trống được xử lý trong DB,
--- tránh race condition (2 người đặt cùng lúc) nhờ transaction
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_tao_don_dat_tour(
-    p_user_id          UUID,
-    p_tour_id          UUID,
-    p_num_adults       INTEGER,
-    p_num_children     INTEGER DEFAULT 0,
-    p_contact_name     VARCHAR DEFAULT NULL,
-    p_contact_email    VARCHAR DEFAULT NULL,
-    p_contact_phone    VARCHAR DEFAULT NULL,
-    p_special_requests TEXT DEFAULT NULL,
-    p_ip_address       VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 2.9: Đóng Tour (PUBLISHED -> ARCHIVED)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_dong_tour$$
+CREATE PROCEDURE sp_dong_tour(
+    IN p_tour_id    CHAR(36),
+    IN p_user_id    CHAR(36),
+    IN p_ip_address VARCHAR(45)
 )
-RETURNS TABLE (
-    booking_id      UUID,
-    booking_code    VARCHAR,
-    tour_id         UUID,
-    tour_title      VARCHAR,
-    status          VARCHAR,
-    num_adults      INTEGER,
-    num_children    INTEGER,
-    total_price     NUMERIC,
-    contact_name    VARCHAR,
-    contact_email   VARCHAR,
-    contact_phone   VARCHAR,
-    special_requests TEXT,
-    created_at      TIMESTAMPTZ
-) AS $$
-DECLARE
-    v_tour_status       VARCHAR;        -- Trạng thái hiện tại của tour
-    v_tour_title        VARCHAR;        -- Tên tour
-    v_price_adult       NUMERIC;        -- Giá vé người lớn
-    v_price_child       NUMERIC;        -- Giá vé trẻ em
-    v_max_participants  INTEGER;        -- Tổng số chỗ tối đa
-    v_booked_seats      INTEGER;        -- Số chỗ đã đặt (chưa hủy)
-    v_available         INTEGER;        -- Số chỗ còn trống
-    v_requested_seats   INTEGER;        -- Số chỗ khách yêu cầu
-    v_total_price       NUMERIC;        -- Tổng tiền vé
-    v_booking_code      VARCHAR;        -- Mã đặt tour
-    v_booking_id        UUID;           -- ID đơn đặt tour
-    v_user_name         VARCHAR;        -- Tên user (dùng làm contact_name mặc định)
-    v_user_email        VARCHAR;        -- Email user
 BEGIN
-    -- ========== BƯỚC 1: Lấy thông tin tour ==========
-    SELECT t.status, t.title, t.base_price_adult, t.base_price_child, t.max_participants
-    INTO v_tour_status, v_tour_title, v_price_adult, v_price_child, v_max_participants
-    FROM tours t
-    WHERE t.id = p_tour_id
-    FOR UPDATE;  -- FOR UPDATE: Khóa dòng này lại, tránh 2 người đặt cùng lúc (race condition)
+    UPDATE tours SET status = 'ARCHIVED', updated_at = NOW() WHERE id = p_tour_id;
 
-    -- Kiểm tra tour có tồn tại không
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_user_id, 'TOUR_ARCHIVED', 'tours', p_tour_id, p_ip_address, NOW());
+
+    SELECT p_tour_id AS tour_id, 'ARCHIVED' AS status, 'Đóng tour thành công' AS message;
+END$$
+
+
+-- ------------------------------------------------------------
+-- 2.10: Hủy Tour (-> CANCELLED)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_huy_tour$$
+CREATE PROCEDURE sp_huy_tour(
+    IN p_tour_id    CHAR(36),
+    IN p_user_id    CHAR(36),
+    IN p_ip_address VARCHAR(45)
+)
+BEGIN
+    UPDATE tours SET status = 'CANCELLED', updated_at = NOW() WHERE id = p_tour_id;
+
+    -- Tự động hủy các booking đang chờ thanh toán
+    UPDATE bookings SET status = 'CANCELLED', updated_at = NOW()
+    WHERE tour_id = p_tour_id AND status = 'PENDING_PAYMENT';
+
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_user_id, 'TOUR_CANCELLED', 'tours', p_tour_id, p_ip_address, NOW());
+
+    SELECT p_tour_id AS tour_id, 'CANCELLED' AS status, 'Hủy tour thành công' AS message;
+END$$
+
+
+-- ████████████████████████████████████████████████████████████
+-- PHẦN 3: THỦ TỤC ĐẶT TOUR (BOOKINGS - BẢO VỆ RACE CONDITION)
+-- ████████████████████████████████████████████████████████████
+
+-- ------------------------------------------------------------
+-- 3.1: Tạo đơn đặt tour (Khóa dòng FOR UPDATE an toàn chỗ trống)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_tao_don_dat_tour$$
+CREATE PROCEDURE sp_tao_don_dat_tour(
+    IN p_user_id          CHAR(36),
+    IN p_tour_id          CHAR(36),
+    IN p_num_adults       INT,
+    IN p_num_children     INT,
+    IN p_contact_name     VARCHAR(255),
+    IN p_contact_email    VARCHAR(255),
+    IN p_contact_phone    VARCHAR(20),
+    IN p_special_requests TEXT,
+    IN p_ip_address       VARCHAR(45)
+)
+BEGIN
+    DECLARE v_tour_status     VARCHAR(30);
+    DECLARE v_tour_title      VARCHAR(500);
+    DECLARE v_price_adult     DECIMAL(12, 2);
+    DECLARE v_price_child     DECIMAL(12, 2);
+    DECLARE v_available_slots INT;
+    DECLARE v_req_seats       INT;
+    DECLARE v_total_price     DECIMAL(12, 2);
+    DECLARE v_booking_id      CHAR(36);
+    DECLARE v_booking_code    VARCHAR(50);
+
+    -- 1. Khóa dòng tour bằng FOR UPDATE để loại bỏ race condition
+    SELECT status, title, base_price_adult, base_price_child, available_slots
+    INTO v_tour_status, v_tour_title, v_price_adult, v_price_child, v_available_slots
+    FROM tours
+    WHERE id = p_tour_id
+    FOR UPDATE;
+
     IF v_tour_status IS NULL THEN
-        RAISE EXCEPTION 'Không tìm thấy tour với ID "%"', p_tour_id;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tour không tồn tại';
     END IF;
 
-    -- Kiểm tra tour đang mở bán
     IF v_tour_status != 'PUBLISHED' THEN
-        RAISE EXCEPTION 'Tour "%" hiện không mở đặt chỗ (Trạng thái: %)', v_tour_title, v_tour_status;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tour hiện không mở bán đặt chỗ';
     END IF;
 
-    -- ========== BƯỚC 2: Kiểm tra chỗ trống ==========
-    -- Đếm tổng số chỗ đã đặt (booking chưa hủy và chưa hết hạn)
-    SELECT COALESCE(SUM(b.num_adults + b.num_children), 0)::INTEGER
-    INTO v_booked_seats
-    FROM bookings b
-    WHERE b.tour_id = p_tour_id
-    AND b.status IN ('PENDING_PAYMENT', 'CONFIRMED');
-
-    v_available := v_max_participants - v_booked_seats;
-    v_requested_seats := p_num_adults + p_num_children;
-
-    IF v_requested_seats > v_available THEN
-        RAISE EXCEPTION 'Tour không đủ chỗ trống. Yêu cầu % chỗ nhưng chỉ còn % chỗ.',
-            v_requested_seats, GREATEST(v_available, 0);
+    SET v_req_seats = p_num_adults + p_num_children;
+    IF v_available_slots < v_req_seats THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tour không đủ số chỗ trống yêu cầu';
     END IF;
 
-    -- ========== BƯỚC 3: Tính tổng tiền ==========
-    -- Công thức: (số người lớn × giá người lớn) + (số trẻ em × giá trẻ em)
-    v_total_price := (p_num_adults * v_price_adult) + (p_num_children * v_price_child);
+    -- 2. Tính tiền và trừ số chỗ trống
+    SET v_total_price = (p_num_adults * v_price_adult) + (p_num_children * v_price_child);
+    SET v_booking_id = UUID();
+    SET v_booking_code = CONCAT('BK-', DATE_FORMAT(NOW(), '%Y%m%d'), '-', UPPER(SUBSTRING(MD5(RAND()), 1, 6)));
 
-    -- ========== BƯỚC 4: Lấy thông tin liên hệ mặc định từ user ==========
-    SELECT u.full_name, u.email INTO v_user_name, v_user_email
-    FROM users u WHERE u.id = p_user_id;
+    -- Trừ số chỗ còn trống
+    UPDATE tours SET available_slots = available_slots - v_req_seats WHERE id = p_tour_id;
 
-    -- ========== BƯỚC 5: Sinh mã booking ==========
-    -- Format: BK-YYYYMMDD-XXXXXX (6 ký tự ngẫu nhiên)
-    v_booking_code := 'BK-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || UPPER(SUBSTR(md5(random()::text), 1, 6));
-
-    -- ========== BƯỚC 6: Lưu đơn đặt tour ==========
+    -- Lưu đơn đặt tour
     INSERT INTO bookings (
-        booking_code, user_id, tour_id, status,
-        num_adults, num_children, total_price,
-        contact_name, contact_email, contact_phone, special_requests
+        id, booking_code, user_id, tour_id, status, num_adults, num_children,
+        total_price, contact_name, contact_email, contact_phone, special_requests,
+        created_at, updated_at
     )
     VALUES (
-        v_booking_code, p_user_id, p_tour_id, 'PENDING_PAYMENT',
-        p_num_adults, p_num_children, v_total_price,
-        COALESCE(p_contact_name, v_user_name),
-        COALESCE(p_contact_email, v_user_email),
-        COALESCE(p_contact_phone, ''),
-        p_special_requests
-    )
-    RETURNING id INTO v_booking_id;
+        v_booking_id, v_booking_code, p_user_id, p_tour_id, 'PENDING_PAYMENT',
+        p_num_adults, p_num_children, v_total_price, p_contact_name, p_contact_email,
+        p_contact_phone, p_special_requests, NOW(), NOW()
+    );
 
-    -- ========== BƯỚC 7: Cập nhật số chỗ trống trên tour ==========
-    UPDATE tours SET available_slots = available_slots - v_requested_seats
-    WHERE id = p_tour_id;
+    -- Ghi nhật ký
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_user_id, 'BOOKING_CREATED', 'bookings', v_booking_id, p_ip_address, NOW());
 
-    -- ========== BƯỚC 8: Ghi nhật ký ==========
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address, details)
-    VALUES (p_user_id, 'BOOKING_CREATED', 'bookings', v_booking_id::TEXT, p_ip_address,
-            jsonb_build_object(
-                'booking_code', v_booking_code,
-                'tour_title', v_tour_title,
-                'total_price', v_total_price,
-                'seats', v_requested_seats
-            ));
-
-    -- ========== BƯỚC 9: Trả về kết quả ==========
-    RETURN QUERY
+    -- Trả về thông tin đơn vừa tạo
     SELECT
-        v_booking_id, v_booking_code::VARCHAR, p_tour_id, v_tour_title,
-        'PENDING_PAYMENT'::VARCHAR,
-        p_num_adults, p_num_children, v_total_price,
-        COALESCE(p_contact_name, v_user_name)::VARCHAR,
-        COALESCE(p_contact_email, v_user_email)::VARCHAR,
-        COALESCE(p_contact_phone, '')::VARCHAR,
-        p_special_requests::TEXT,
-        NOW();
-END;
-$$ LANGUAGE plpgsql;
+        b.id AS booking_id,
+        b.booking_code,
+        b.tour_id,
+        v_tour_title AS tour_title,
+        b.status,
+        b.num_adults,
+        b.num_children,
+        b.total_price,
+        b.contact_name,
+        b.contact_email,
+        b.contact_phone,
+        b.special_requests,
+        b.created_at
+    FROM bookings b
+    WHERE b.id = v_booking_id;
+END$$
 
-COMMENT ON FUNCTION fn_tao_don_dat_tour IS 'Tạo đơn đặt tour - tự động tính tiền, kiểm tra chỗ trống, chống race condition';
 
-
--- ============================================================
--- HÀM 4.2: Thêm hành khách vào đơn đặt tour
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_them_hanh_khach(
-    p_booking_id     UUID,
-    p_full_name      VARCHAR,
-    p_passenger_type VARCHAR DEFAULT 'ADULT',
-    p_id_card_number VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 3.2: Thêm hành khách vào đơn đặt tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_them_hanh_khach$$
+CREATE PROCEDURE sp_them_hanh_khach(
+    IN p_booking_id     CHAR(36),
+    IN p_full_name      VARCHAR(255),
+    IN p_passenger_type VARCHAR(20),
+    IN p_id_card_number VARCHAR(50)
 )
-RETURNS TABLE (
-    passenger_id    UUID,
-    booking_id      UUID,
-    full_name       VARCHAR,
-    passenger_type  VARCHAR,
-    id_card_number  VARCHAR
-) AS $$
-DECLARE
-    v_id UUID;
 BEGIN
-    INSERT INTO booking_passengers (booking_id, full_name, passenger_type, id_card_number)
-    VALUES (p_booking_id, p_full_name, p_passenger_type, p_id_card_number)
-    RETURNING id INTO v_id;
+    DECLARE v_id CHAR(36);
+    SET v_id = UUID();
 
-    RETURN QUERY
-    SELECT bp.id, bp.booking_id, bp.full_name, bp.passenger_type, bp.id_card_number
-    FROM booking_passengers bp WHERE bp.id = v_id;
-END;
-$$ LANGUAGE plpgsql;
+    INSERT INTO booking_passengers (id, booking_id, full_name, passenger_type, id_card_number, created_at)
+    VALUES (v_id, p_booking_id, p_full_name, p_passenger_type, p_id_card_number, NOW());
+
+    SELECT v_id AS passenger_id, p_booking_id AS booking_id, p_full_name AS full_name, p_passenger_type AS passenger_type, p_id_card_number AS id_card_number;
+END$$
 
 
--- ============================================================
--- HÀM 4.3: Xem chi tiết đơn đặt tour
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_chi_tiet_booking(
-    p_booking_id UUID
+-- ------------------------------------------------------------
+-- 3.3: Xem chi tiết đơn đặt tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_chi_tiet_booking$$
+CREATE PROCEDURE sp_lay_chi_tiet_booking(
+    IN p_booking_id CHAR(36)
 )
-RETURNS TABLE (
-    booking_id       UUID,
-    booking_code     VARCHAR,
-    user_id          UUID,
-    tour_id          UUID,
-    tour_title       VARCHAR,
-    status           VARCHAR,
-    num_adults       INTEGER,
-    num_children     INTEGER,
-    total_price      NUMERIC,
-    contact_name     VARCHAR,
-    contact_email    VARCHAR,
-    contact_phone    VARCHAR,
-    special_requests TEXT,
-    created_at       TIMESTAMPTZ,
-    updated_at       TIMESTAMPTZ
-) AS $$
 BEGIN
-    RETURN QUERY
     SELECT
-        b.id, b.booking_code, b.user_id, b.tour_id,
+        b.id AS booking_id,
+        b.booking_code,
+        b.user_id,
+        b.tour_id,
         t.title AS tour_title,
-        b.status, b.num_adults, b.num_children, b.total_price,
-        b.contact_name, b.contact_email, b.contact_phone,
-        b.special_requests, b.created_at, b.updated_at
+        b.status,
+        b.num_adults,
+        b.num_children,
+        b.total_price,
+        b.contact_name,
+        b.contact_email,
+        b.contact_phone,
+        b.special_requests,
+        b.created_at,
+        b.updated_at
     FROM bookings b
     JOIN tours t ON t.id = b.tour_id
     WHERE b.id = p_booking_id;
-END;
-$$ LANGUAGE plpgsql;
+END$$
 
 
--- ============================================================
--- HÀM 4.4: Lấy danh sách hành khách của 1 đơn
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_hanh_khach_booking(p_booking_id UUID)
-RETURNS TABLE (
-    passenger_id   UUID,
-    full_name      VARCHAR,
-    passenger_type VARCHAR,
-    id_card_number VARCHAR
-) AS $$
+-- ------------------------------------------------------------
+-- 3.4: Lấy danh sách hành khách của 1 đơn đặt tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_hanh_khach_booking$$
+CREATE PROCEDURE sp_lay_hanh_khach_booking(
+    IN p_booking_id CHAR(36)
+)
 BEGIN
-    RETURN QUERY
-    SELECT bp.id, bp.full_name, bp.passenger_type, bp.id_card_number
+    SELECT
+        bp.id AS passenger_id,
+        bp.full_name,
+        bp.passenger_type,
+        bp.id_card_number
     FROM booking_passengers bp
     WHERE bp.booking_id = p_booking_id
-    ORDER BY bp.created_at;
-END;
-$$ LANGUAGE plpgsql;
+    ORDER BY bp.created_at ASC;
+END$$
 
 
--- ============================================================
--- HÀM 4.5: Xem lịch sử đặt tour của bản thân (phân trang)
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_booking_cua_toi(
-    p_user_id UUID,
-    p_skip    INTEGER DEFAULT 0,
-    p_limit   INTEGER DEFAULT 10
+-- ------------------------------------------------------------
+-- 3.5: Lấy danh sách đơn đặt tour của cá nhân (phân trang)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_booking_cua_toi$$
+CREATE PROCEDURE sp_lay_booking_cua_toi(
+    IN p_user_id CHAR(36),
+    IN p_skip    INT,
+    IN p_limit   INT
 )
-RETURNS TABLE (
-    booking_id   UUID,
-    booking_code VARCHAR,
-    tour_id      UUID,
-    tour_title   VARCHAR,
-    status       VARCHAR,
-    num_adults   INTEGER,
-    num_children INTEGER,
-    total_price  NUMERIC,
-    contact_name VARCHAR,
-    created_at   TIMESTAMPTZ,
-    total_count  BIGINT
-) AS $$
 BEGIN
-    RETURN QUERY
     SELECT
-        b.id, b.booking_code, b.tour_id,
-        t.title, b.status,
-        b.num_adults, b.num_children, b.total_price,
-        b.contact_name, b.created_at,
-        COUNT(*) OVER()::BIGINT
+        b.id AS booking_id,
+        b.booking_code,
+        b.tour_id,
+        t.title AS tour_title,
+        b.status,
+        b.num_adults,
+        b.num_children,
+        b.total_price,
+        b.contact_name,
+        b.created_at,
+        (SELECT COUNT(*) FROM bookings b2 WHERE b2.user_id = p_user_id) AS total_count
     FROM bookings b
     JOIN tours t ON t.id = b.tour_id
     WHERE b.user_id = p_user_id
     ORDER BY b.created_at DESC
-    OFFSET p_skip LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql;
+    LIMIT p_skip, p_limit;
+END$$
 
 
--- ============================================================
--- HÀM 4.6: Xem toàn bộ đơn đặt tour (Admin/Staff, phân trang)
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_lay_tat_ca_booking(
-    p_skip       INTEGER DEFAULT 0,
-    p_limit      INTEGER DEFAULT 20,
-    p_status     VARCHAR DEFAULT NULL,    -- Lọc theo trạng thái
-    p_tour_id    UUID DEFAULT NULL        -- Lọc theo tour
+-- ------------------------------------------------------------
+-- 3.6: Xem toàn bộ đơn đặt tour trong hệ thống (Admin / Staff)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_lay_tat_ca_booking$$
+CREATE PROCEDURE sp_lay_tat_ca_booking(
+    IN p_skip    INT,
+    IN p_limit   INT,
+    IN p_status  VARCHAR(30),
+    IN p_tour_id CHAR(36)
 )
-RETURNS TABLE (
-    booking_id   UUID,
-    booking_code VARCHAR,
-    user_id      UUID,
-    tour_id      UUID,
-    tour_title   VARCHAR,
-    status       VARCHAR,
-    num_adults   INTEGER,
-    num_children INTEGER,
-    total_price  NUMERIC,
-    contact_name VARCHAR,
-    created_at   TIMESTAMPTZ,
-    total_count  BIGINT
-) AS $$
 BEGIN
-    RETURN QUERY
     SELECT
-        b.id, b.booking_code, b.user_id, b.tour_id,
-        t.title, b.status,
-        b.num_adults, b.num_children, b.total_price,
-        b.contact_name, b.created_at,
-        COUNT(*) OVER()::BIGINT
+        b.id AS booking_id,
+        b.booking_code,
+        b.user_id,
+        b.tour_id,
+        t.title AS tour_title,
+        b.status,
+        b.num_adults,
+        b.num_children,
+        b.total_price,
+        b.contact_name,
+        b.created_at,
+        (
+            SELECT COUNT(*) FROM bookings b2
+            WHERE (p_status IS NULL OR b2.status = p_status)
+              AND (p_tour_id IS NULL OR b2.tour_id = p_tour_id)
+        ) AS total_count
     FROM bookings b
     JOIN tours t ON t.id = b.tour_id
-    WHERE
-        (p_status IS NULL OR b.status = p_status)
-        AND (p_tour_id IS NULL OR b.tour_id = p_tour_id)
+    WHERE (p_status IS NULL OR b.status = p_status)
+      AND (p_tour_id IS NULL OR b.tour_id = p_tour_id)
     ORDER BY b.created_at DESC
-    OFFSET p_skip LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql;
+    LIMIT p_skip, p_limit;
+END$$
 
 
--- ============================================================
--- HÀM 4.7: Hủy đơn đặt tour
--- ============================================================
--- THUẬT TOÁN:
---   1. Kiểm tra đơn tồn tại
---   2. Kiểm tra quyền: chỉ chủ đơn hoặc Admin mới được hủy
---   3. Kiểm tra trạng thái: đơn đã hủy thì không hủy lại
---   4. Cập nhật trạng thái → CANCELLED
---   5. Hoàn trả số chỗ trống cho tour
---   6. Ghi nhật ký
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_huy_don_dat_tour(
-    p_booking_id     UUID,
-    p_current_user_id UUID,
-    p_is_admin       BOOLEAN DEFAULT FALSE,
-    p_ip_address     VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 3.7: Hủy đơn đặt tour và tự động hoàn trả chỗ trống cho Tour
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_huy_don_dat_tour$$
+CREATE PROCEDURE sp_huy_don_dat_tour(
+    IN p_booking_id       CHAR(36),
+    IN p_current_user_id  CHAR(36),
+    IN p_is_admin         BOOLEAN,
+    IN p_ip_address       VARCHAR(45)
 )
-RETURNS TABLE (
-    booking_id   UUID,
-    booking_code VARCHAR,
-    status       VARCHAR,
-    message      TEXT
-) AS $$
-DECLARE
-    v_booking_user_id UUID;
-    v_current_status  VARCHAR;
-    v_tour_id         UUID;
-    v_seats           INTEGER;
-    v_code            VARCHAR;
 BEGIN
-    -- Lấy thông tin đơn hiện tại
-    SELECT b.user_id, b.status, b.tour_id, (b.num_adults + b.num_children), b.booking_code
-    INTO v_booking_user_id, v_current_status, v_tour_id, v_seats, v_code
-    FROM bookings b WHERE b.id = p_booking_id;
+    DECLARE v_user_id  CHAR(36);
+    DECLARE v_status   VARCHAR(30);
+    DECLARE v_tour_id  CHAR(36);
+    DECLARE v_seats    INT;
+    DECLARE v_code     VARCHAR(50);
 
-    IF v_current_status IS NULL THEN
-        RAISE EXCEPTION 'Không tìm thấy đơn đặt tour với ID "%"', p_booking_id;
+    SELECT user_id, status, tour_id, (num_adults + num_children), booking_code
+    INTO v_user_id, v_status, v_tour_id, v_seats, v_code
+    FROM bookings
+    WHERE id = p_booking_id
+    FOR UPDATE;
+
+    IF v_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đơn đặt tour không tồn tại';
     END IF;
 
-    -- Kiểm tra quyền
-    IF NOT p_is_admin AND v_booking_user_id != p_current_user_id THEN
-        RAISE EXCEPTION 'Bạn không có quyền hủy đơn đặt tour này';
+    IF NOT p_is_admin AND v_user_id != p_current_user_id THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Bạn không có quyền hủy đơn đặt tour này';
     END IF;
 
-    -- Kiểm tra trạng thái
-    IF v_current_status = 'CANCELLED' THEN
-        RAISE EXCEPTION 'Đơn đặt tour này đã bị hủy trước đó rồi';
+    IF v_status = 'CANCELLED' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đơn đặt tour này đã bị hủy trước đó rồi';
     END IF;
 
-    -- Cập nhật trạng thái
-    UPDATE bookings SET status = 'CANCELLED' WHERE id = p_booking_id;
+    -- Cập nhật trạng thái hủy
+    UPDATE bookings SET status = 'CANCELLED', updated_at = NOW() WHERE id = p_booking_id;
 
-    -- Hoàn trả chỗ cho tour (chỉ hoàn nếu trước đó chưa hủy/hết hạn)
-    IF v_current_status IN ('PENDING_PAYMENT', 'CONFIRMED') THEN
+    -- Hoàn trả số chỗ cho tour
+    IF v_status IN ('PENDING_PAYMENT', 'CONFIRMED') THEN
         UPDATE tours SET available_slots = available_slots + v_seats WHERE id = v_tour_id;
     END IF;
 
-    -- Ghi log
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address, details)
-    VALUES (p_current_user_id, 'BOOKING_CANCELLED', 'bookings', p_booking_id::TEXT, p_ip_address,
-            jsonb_build_object('booking_code', v_code, 'reason', 'Người dùng yêu cầu hủy'));
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_current_user_id, 'BOOKING_CANCELLED', 'bookings', p_booking_id, p_ip_address, NOW());
 
-    RETURN QUERY SELECT p_booking_id, v_code::VARCHAR, 'CANCELLED'::VARCHAR, 'Đơn đặt tour đã được hủy thành công'::TEXT;
-END;
-$$ LANGUAGE plpgsql;
+    SELECT p_booking_id AS booking_id, v_code AS booking_code, 'CANCELLED' AS status, 'Hủy đơn đặt tour thành công' AS message;
+END$$
 
 
--- ============================================================
--- HÀM 4.8: Xác nhận đơn đặt tour (Admin duyệt)
--- ============================================================
--- Chuyển trạng thái: PENDING_PAYMENT → CONFIRMED
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_xac_nhan_don_dat_tour(
-    p_booking_id UUID,
-    p_admin_id   UUID,
-    p_ip_address VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 3.8: Xác nhận duyệt đơn đặt tour (Admin / Staff)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_xac_nhan_don_dat_tour$$
+CREATE PROCEDURE sp_xac_nhan_don_dat_tour(
+    IN p_booking_id CHAR(36),
+    IN p_admin_id   CHAR(36),
+    IN p_ip_address VARCHAR(45)
 )
-RETURNS TABLE (
-    booking_id   UUID,
-    booking_code VARCHAR,
-    status       VARCHAR,
-    message      TEXT
-) AS $$
-DECLARE
-    v_current_status VARCHAR;
-    v_code           VARCHAR;
 BEGIN
-    SELECT b.status, b.booking_code INTO v_current_status, v_code
-    FROM bookings b WHERE b.id = p_booking_id;
+    UPDATE bookings SET status = 'CONFIRMED', updated_at = NOW() WHERE id = p_booking_id;
 
-    IF v_current_status IS NULL THEN
-        RAISE EXCEPTION 'Không tìm thấy đơn đặt tour với ID "%"', p_booking_id;
-    END IF;
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_address, created_at)
+    VALUES (UUID(), p_admin_id, 'BOOKING_CONFIRMED', 'bookings', p_booking_id, p_ip_address, NOW());
 
-    IF v_current_status = 'CANCELLED' THEN
-        RAISE EXCEPTION 'Không thể xác nhận đơn đã bị hủy';
-    END IF;
-
-    IF v_current_status = 'CONFIRMED' THEN
-        RAISE EXCEPTION 'Đơn này đã được xác nhận trước đó rồi';
-    END IF;
-
-    UPDATE bookings SET status = 'CONFIRMED' WHERE id = p_booking_id;
-
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, ip_address, details)
-    VALUES (p_admin_id, 'BOOKING_CONFIRMED', 'bookings', p_booking_id::TEXT, p_ip_address,
-            jsonb_build_object('booking_code', v_code));
-
-    RETURN QUERY SELECT p_booking_id, v_code::VARCHAR, 'CONFIRMED'::VARCHAR, 'Đơn đặt tour đã được xác nhận thành công'::TEXT;
-END;
-$$ LANGUAGE plpgsql;
+    SELECT p_booking_id AS booking_id, 'CONFIRMED' AS status, 'Xác nhận duyệt đơn thành công' AS message;
+END$$
 
 
--- ████████████████████████████████████████████████████████████
--- PHẦN 5: HÀM TIỆN ÍCH (UTILITY)
--- ████████████████████████████████████████████████████████████
-
--- ============================================================
--- HÀM 5.1: Ghi nhật ký chung (Audit Log)
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_ghi_nhat_ky(
-    p_user_id     UUID,
-    p_action      VARCHAR,
-    p_resource    VARCHAR DEFAULT NULL,
-    p_resource_id VARCHAR DEFAULT NULL,
-    p_details     JSONB DEFAULT NULL,
-    p_ip_address  VARCHAR DEFAULT NULL
+-- ------------------------------------------------------------
+-- 3.9: Ghi nhật ký chung (Audit Log)
+-- ------------------------------------------------------------
+DROP PROCEDURE IF EXISTS sp_ghi_nhat_ky$$
+CREATE PROCEDURE sp_ghi_nhat_ky(
+    IN p_user_id     CHAR(36),
+    IN p_action      VARCHAR(100),
+    IN p_resource    VARCHAR(100),
+    IN p_resource_id VARCHAR(100),
+    IN p_details     JSON,
+    IN p_ip_address  VARCHAR(45)
 )
-RETURNS UUID AS $$
-DECLARE
-    v_log_id UUID;
 BEGIN
-    INSERT INTO audit_logs (user_id, action, resource, resource_id, details, ip_address)
-    VALUES (p_user_id, p_action, p_resource, p_resource_id, p_details, p_ip_address)
-    RETURNING id INTO v_log_id;
+    DECLARE v_log_id CHAR(36);
+    SET v_log_id = UUID();
 
-    RETURN v_log_id;
-END;
-$$ LANGUAGE plpgsql;
+    INSERT INTO audit_logs (id, user_id, action, resource, resource_id, details, ip_address, created_at)
+    VALUES (v_log_id, p_user_id, p_action, p_resource, p_resource_id, p_details, p_ip_address, NOW());
 
+    SELECT v_log_id AS log_id;
+END$$
 
--- ============================================================
--- HOÀN TẤT: Tất cả stored procedures đã được tạo thành công
--- Tiếp theo chạy file 04_du_lieu_mau.sql để chèn dữ liệu mẫu
--- ============================================================
+DELIMITER ;

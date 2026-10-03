@@ -1,29 +1,24 @@
 -- ============================================================
--- FILE: 01_tao_database.sql
--- MỤC ĐÍCH: Tạo database cho hệ thống đặt tour du lịch
+-- FILE: 01_tao_database.sql (MySQL)
+-- MỤC ĐÍCH: Tạo Database MySQL cho hệ thống Đặt Tour Du Lịch
 -- ============================================================
 -- HƯỚNG DẪN CHẠY:
---   Mở pgAdmin hoặc psql, kết nối vào PostgreSQL với user "postgres"
---   Rồi chạy file này để tạo database mới.
+--   Mở MySQL Workbench, phpMyAdmin, DBeaver, Navicat hoặc Terminal MySQL
+--   kết nối với user "root" hoặc user có quyền tạo database.
 --
---   Lệnh chạy qua psql:
---   psql -U postgres -p 8888 -f 01_tao_database.sql
+--   Lệnh chạy qua Terminal MySQL:
+--   mysql -u root -p < 01_tao_database.sql
 -- ============================================================
 
--- Bước 1: Xóa database cũ nếu tồn tại (CHỈ dùng khi phát triển, KHÔNG dùng production)
+-- Bước 1: Xóa database cũ nếu cần làm mới (bỏ comment dòng dưới khi muốn reset)
 -- DROP DATABASE IF EXISTS tour_booking_db;
 
--- Bước 2: Tạo database mới
--- Encoding UTF8 để hỗ trợ Tiếng Việt đầy đủ
-CREATE DATABASE tour_booking_db
-    WITH
-    OWNER = postgres
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en_US.UTF-8'
-    LC_CTYPE = 'en_US.UTF-8'
-    TEMPLATE = template0
-    CONNECTION LIMIT = -1;     -- Không giới hạn số kết nối
+-- Bước 2: Tạo database mới với bảng mã utf8mb4 hỗ trợ Tiếng Việt và icon đầy đủ
+CREATE DATABASE IF NOT EXISTS tour_booking_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
 
--- Ghi chú: Sau khi tạo xong database, hãy kết nối vào database "tour_booking_db"
--- rồi chạy tiếp file 02_tao_bang.sql
--- Lệnh kết nối: \c tour_booking_db
+-- Bước 3: Chọn database vừa tạo để sẵn sàng thực thi các bước tiếp theo
+USE tour_booking_db;
+
+-- Ghi chú: Sau khi chạy file này, hãy chạy tiếp file 02_tao_bang.sql
