@@ -1,1 +1,1 @@
-# auto-generated
+# Package initialization for core module

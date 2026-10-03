@@ -1,108 +1,136 @@
 # ============================================================
 # Travel Booking System — FastAPI Application
 # ============================================================
-
-from __future__ import annotations
+# Tích hợp toàn diện: Middleware Pipeline + Clean Architecture
+# Phục vụ API RESTful v1 + Giao diện Web (Frontend UI)
+# ============================================================
 
 import os
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Dict
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from loguru import logger
+from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
 from app.core.exceptions import AppException
-from app.core.logging import setup_logging
-from app.core.middleware import register_middlewares
 from app.infrastructure.redis.client import close_redis_pool
+from app.middleware.logging import LoggingMiddleware
+from app.middleware.request_id import RequestIdMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.middleware.timing import TimingMiddleware
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan — startup and shutdown events."""
-    # --- Startup ---
-    setup_logging()
-    logger.info(
-        "Application starting: {} v{} | env={}",
-        settings.APP_NAME,
-        settings.APP_VERSION,
-        settings.APP_ENV,
-    )
+    """
+    Quản lý vòng đời (Lifespan) của ứng dụng FastAPI.
+    - Code trước yield: Thực thi khi Server khởi động (Startup).
+    - Code sau yield: Thực thi khi Server tắt (Shutdown).
+    """
+    print(f"[LIFESPAN] 🚀 Ứng dụng '{settings.PROJECT_NAME}' (v{settings.VERSION}) đang khởi động...")
+    print(f"[LIFESPAN] 🌐 Môi trường: {settings.ENVIRONMENT} | Debug: {settings.DEBUG}")
     yield
-    # --- Shutdown ---
+    print("[LIFESPAN] 🛑 Ứng dụng đang tắt: Thu hồi và dọn dẹp tài nguyên...")
     await close_redis_pool()
-    logger.info("Application shutting down")
 
 
-def create_app() -> FastAPI:
-    """Application factory."""
-    application = FastAPI(
-        title=settings.APP_NAME,
-        version=settings.APP_VERSION,
-        description="Tour Management & Booking System with AI Integration",
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
-        lifespan=lifespan,
+# Khởi tạo FastAPI App
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    description="Hệ thống Quản lý & Đặt Tour Du lịch Tích hợp AI",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+# ==============================================================================
+# ĐĂNG KÝ CHUỖI MIDDLEWARE (MIDDLEWARE PIPELINE)
+# Thứ tự Inbound (LIFO): RequestId -> Logging -> Timing -> SecurityHeaders -> CORS -> Router
+# ==============================================================================
+
+# 1. CORS Middleware
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.BACKEND_CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
-    # --- Middleware ---
-    register_middlewares(application)
+# 2. Security Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
 
-    # --- Exception Handlers ---
-    @application.exception_handler(AppException)
-    async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=exc.to_dict(),
-        )
+# 3. Timing Middleware
+app.add_middleware(TimingMiddleware)
 
-    @application.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception("Unhandled exception: {}", str(exc))
-        # Never expose stack trace to client in production
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": {
-                    "code": "INTERNAL_ERROR",
-                    "message": "An unexpected error occurred",
-                }
-            },
-        )
+# 4. Logging Middleware
+app.add_middleware(LoggingMiddleware)
 
-    # --- Routes ---
-    application.include_router(v1_router)
-
-    # --- Static Files & Frontend ---
-    static_dir = os.path.join(os.path.dirname(__file__), "static")
-    if os.path.exists(static_dir):
-        application.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-    @application.get("/", tags=["Frontend"])
-    async def serve_frontend():
-        index_file = os.path.join(static_dir, "index.html")
-        if os.path.exists(index_file):
-            return FileResponse(index_file)
-        return {
-            "message": "Wanderlust Travel API is running.",
-            "docs": "/docs",
-        }
-
-    @application.get("/health", tags=["Health"])
-    async def health_check() -> dict:
-        return {
-            "status": "healthy",
-            "app": settings.APP_NAME,
-            "version": settings.APP_VERSION,
-            "env": settings.APP_ENV,
-        }
-
-    return application
+# 5. Request ID Middleware
+app.add_middleware(RequestIdMiddleware)
 
 
-app = create_app()
+# ==============================================================================
+# XỬ LÝ LỖI TOÀN CỤC (GLOBAL EXCEPTION HANDLERS)
+# ==============================================================================
+
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    """Xử lý các lỗi nghiệp vụ chuẩn hóa (AppException)."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.to_dict(),
+    )
+
+
+# ==============================================================================
+# ROUTERS & GIAO DIỆN WEB
+# ==============================================================================
+
+# 1. API V1 Routes
+app.include_router(v1_router)
+
+# 2. Static Files & Frontend UI
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get(
+    "/",
+    tags=["Frontend & Root"],
+    summary="Trang chủ giao diện người dùng",
+)
+async def serve_frontend():
+    """Phục vụ giao diện web trực quan của hệ thống."""
+    index_file = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {
+        "success": True,
+        "message": f"Chào mừng đến với {settings.PROJECT_NAME} API",
+        "version": settings.VERSION,
+        "docs": "/docs",
+    }
+
+
+@app.get(
+    "/health",
+    tags=["Health Check"],
+    summary="Kiểm tra sức khỏe hệ thống",
+    status_code=status.HTTP_200_OK,
+)
+async def health_check() -> Dict[str, Any]:
+    return {
+        "status": "healthy",
+        "service": "tour-booking-api",
+        "environment": settings.ENVIRONMENT,
+        "version": settings.VERSION,
+    }
