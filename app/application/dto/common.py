@@ -1,67 +1,47 @@
 # ============================================================
-# Travel Booking System — Common DTOs
+# Travel Booking System — DTO: Dùng chung (Common)
 # ============================================================
 
-from __future__ import annotations
-
-from typing import Any, Generic, TypeVar
-
+from typing import Generic, TypeVar
 from pydantic import BaseModel, Field
+import math
 
+# TypeVar cho phép PaginatedResponse dùng được với bất kỳ kiểu dữ liệu nào
 T = TypeVar("T")
 
 
-class PaginationParams(BaseModel):
-    """Pagination query parameters."""
-    page: int = Field(default=1, ge=1, description="Page number")
-    page_size: int = Field(default=20, ge=1, le=100, description="Items per page")
-
-    @property
-    def skip(self) -> int:
-        return (self.page - 1) * self.page_size
-
-    @property
-    def limit(self) -> int:
-        return self.page_size
-
-
 class PaginatedResponse(BaseModel, Generic[T]):
-    """Generic paginated response wrapper."""
+    """
+    Response có phân trang (dùng cho danh sách tour, booking, user...).
+
+    Ví dụ response:
+    {
+        "items": [...],         // Danh sách dữ liệu trang hiện tại
+        "total": 100,           // Tổng số bản ghi
+        "page": 1,              // Trang hiện tại
+        "page_size": 20,        // Số bản ghi mỗi trang
+        "total_pages": 5        // Tổng số trang
+    }
+    """
     items: list[T]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
+    total: int = Field(..., description="Tổng số bản ghi")
+    page: int = Field(..., description="Trang hiện tại")
+    page_size: int = Field(..., description="Số bản ghi mỗi trang")
+    total_pages: int = Field(..., description="Tổng số trang")
 
     @classmethod
-    def create(
-        cls,
-        items: list[T],
-        total: int,
-        page: int,
-        page_size: int,
-    ) -> PaginatedResponse[T]:
-        total_pages = max(1, (total + page_size - 1) // page_size)
+    def create(cls, items: list[T], total: int, page: int, page_size: int):
+        """Tạo response phân trang với tổng số trang tự tính."""
         return cls(
             items=items,
             total=total,
             page=page,
             page_size=page_size,
-            total_pages=total_pages,
+            total_pages=math.ceil(total / page_size) if page_size > 0 else 0,
         )
 
 
-class ErrorResponse(BaseModel):
-    """Standard error response."""
-
-    class ErrorDetail(BaseModel):
-        code: str
-        message: str
-        details: dict[str, Any] | None = None
-
-    error: ErrorDetail
-
-
 class MessageResponse(BaseModel):
-    """Simple message response."""
+    """Response đơn giản chỉ chứa thông báo."""
     message: str
+    success: bool = True

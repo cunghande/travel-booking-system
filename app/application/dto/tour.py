@@ -1,103 +1,81 @@
 # ============================================================
-# Travel Booking System — Tour DTOs
-# ============================================================
-# Request/Response schemas for Tour CRUD + Search/Filter.
+# Travel Booking System — DTO: Tour du lịch
 # ============================================================
 
-import uuid
-from datetime import date, datetime
-from datetime import time as time_type
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
 
-# --------------- Activity ---------------
+# --- Hoạt động trong ngày ---
 
-class CreateActivityRequest(BaseModel):
-    """Input for creating an itinerary activity."""
-    time: Optional[time_type] = Field(None, description="Activity time (HH:MM)")
-    place_name: str = Field(..., min_length=1, max_length=255, description="Name of the place")
+class ActivityCreate(BaseModel):
+    """Dữ liệu tạo 1 hoạt động trong lịch trình."""
+    time_slot: Optional[time] = Field(None, description="Khung giờ (VD: 08:00)")
+    place_name: str = Field(..., min_length=1, max_length=255, description="Tên địa điểm")
+    description: Optional[str] = Field(None, max_length=2000, description="Mô tả hoạt động")
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
-    description: Optional[str] = Field(None, max_length=2000)
 
 
 class ActivityResponse(BaseModel):
-    """Activity info response."""
-    id: uuid.UUID
-    time: Optional[time_type] = None
+    """Thông tin hoạt động trả về."""
+    id: UUID
+    time_slot: Optional[time] = None
     place_name: str
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     description: Optional[str] = None
 
-    model_config = {"from_attributes": True}
 
+# --- Lịch trình 1 ngày ---
 
-# --------------- Itinerary ---------------
-
-class CreateItineraryRequest(BaseModel):
-    """Input for creating an itinerary day."""
-    day_number: int = Field(..., ge=1, description="Day number in the tour")
-    title: str = Field(..., min_length=1, max_length=500, description="Day title")
-    activities: list[CreateActivityRequest] = Field(
-        default_factory=list, description="Activities for this day"
-    )
+class ItineraryCreate(BaseModel):
+    """Dữ liệu tạo lịch trình 1 ngày."""
+    day_number: int = Field(..., ge=1, description="Ngày thứ mấy (1, 2, 3...)")
+    title: str = Field(..., min_length=1, max_length=500, description="Tiêu đề ngày")
+    activities: list[ActivityCreate] = Field(default_factory=list, description="Danh sách hoạt động")
 
 
 class ItineraryResponse(BaseModel):
-    """Itinerary day response."""
-    id: uuid.UUID
+    """Thông tin lịch trình trả về."""
+    id: UUID
     day_number: int
     title: str
     activities: list[ActivityResponse] = []
 
-    model_config = {"from_attributes": True}
 
+# --- Tour ---
 
-# --------------- Tour ---------------
-
-class CreateTourRequest(BaseModel):
-    """Input for creating a new tour."""
-    title: str = Field(..., min_length=3, max_length=500, description="Tour title")
-    description: Optional[str] = Field(None, max_length=5000, description="Tour description")
-    category: Optional[str] = Field(None, max_length=100, description="Tour category")
-    tags: Optional[list[str]] = Field(None, description="Tags for searching")
-    destination: str = Field(..., min_length=1, max_length=255, description="Destination")
-    base_price_adult: Decimal = Field(..., gt=0, description="Adult price")
-    base_price_child: Decimal = Field(..., ge=0, description="Child price")
-    max_participants: int = Field(..., gt=0, le=1000, description="Maximum participants")
-    start_date: date = Field(..., description="Tour start date")
-    end_date: date = Field(..., description="Tour end date")
-    itineraries: list[CreateItineraryRequest] = Field(
-        default_factory=list, description="Itinerary days"
-    )
+class TourCreate(BaseModel):
+    """Dữ liệu tạo tour mới."""
+    title: str = Field(..., min_length=3, max_length=500, description="Tên tour")
+    description: Optional[str] = Field(None, max_length=5000, description="Mô tả tour")
+    category: Optional[str] = Field(None, max_length=100, description="Danh mục (Biển, Núi...)")
+    destination: str = Field(..., min_length=1, max_length=255, description="Điểm đến")
+    base_price_adult: Decimal = Field(..., gt=0, description="Giá vé người lớn")
+    base_price_child: Decimal = Field(..., ge=0, description="Giá vé trẻ em")
+    max_participants: int = Field(..., gt=0, le=1000, description="Số chỗ tối đa")
+    start_date: date = Field(..., description="Ngày khởi hành")
+    end_date: date = Field(..., description="Ngày kết thúc")
+    itineraries: list[ItineraryCreate] = Field(default_factory=list, description="Lịch trình từng ngày")
 
     @field_validator("end_date")
     @classmethod
-    def end_date_after_start(cls, v, info):
+    def ngay_ket_thuc_phai_sau_bat_dau(cls, v, info):
+        """Kiểm tra: ngày kết thúc phải sau ngày bắt đầu."""
         start = info.data.get("start_date")
         if start and v <= start:
-            raise ValueError("end_date must be after start_date")
-        return v
-
-    @field_validator("base_price_child")
-    @classmethod
-    def child_price_not_exceed_adult(cls, v, info):
-        adult = info.data.get("base_price_adult")
-        if adult is not None and v > adult:
-            raise ValueError("Child price cannot exceed adult price")
+            raise ValueError("Ngày kết thúc phải sau ngày bắt đầu")
         return v
 
 
-class UpdateTourRequest(BaseModel):
-    """Input for updating a tour. All fields optional."""
+class TourUpdate(BaseModel):
+    """Dữ liệu cập nhật tour (tất cả trường tùy chọn)."""
     title: Optional[str] = Field(None, min_length=3, max_length=500)
     description: Optional[str] = Field(None, max_length=5000)
     category: Optional[str] = Field(None, max_length=100)
-    tags: Optional[list[str]] = None
     destination: Optional[str] = Field(None, min_length=1, max_length=255)
     base_price_adult: Optional[Decimal] = Field(None, gt=0)
     base_price_child: Optional[Decimal] = Field(None, ge=0)
@@ -107,13 +85,12 @@ class UpdateTourRequest(BaseModel):
 
 
 class TourResponse(BaseModel):
-    """Full tour detail response (with itineraries)."""
-    id: uuid.UUID
+    """Thông tin chi tiết tour (kèm lịch trình)."""
+    id: UUID
     tour_code: str
     title: str
     description: Optional[str] = None
     category: Optional[str] = None
-    tags: Optional[list[str]] = None
     destination: str
     base_price_adult: float
     base_price_child: float
@@ -122,17 +99,15 @@ class TourResponse(BaseModel):
     start_date: date
     end_date: date
     status: str
-    created_by: Optional[uuid.UUID] = None
+    created_by: Optional[UUID] = None
     itineraries: list[ItineraryResponse] = []
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
-
 
 class TourListResponse(BaseModel):
-    """Compact tour response for list views (no itineraries)."""
-    id: uuid.UUID
+    """Thông tin rút gọn cho danh sách tour (không có lịch trình)."""
+    id: UUID
     tour_code: str
     title: str
     category: Optional[str] = None
@@ -145,21 +120,3 @@ class TourListResponse(BaseModel):
     end_date: date
     status: str
     created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-# --------------- Filter Params ---------------
-
-class TourFilterParams(BaseModel):
-    """Query parameters for filtering/searching tours."""
-    destination: Optional[str] = Field(None, description="Filter by destination (partial match)")
-    category: Optional[str] = Field(None, description="Filter by category")
-    status: Optional[str] = Field(None, description="Filter by status")
-    min_price: Optional[float] = Field(None, ge=0, description="Minimum adult price")
-    max_price: Optional[float] = Field(None, ge=0, description="Maximum adult price")
-    start_date_from: Optional[date] = Field(None, description="Tours starting from this date")
-    start_date_to: Optional[date] = Field(None, description="Tours starting before this date")
-    search: Optional[str] = Field(None, description="Full-text search in title/description")
-    sort_by: str = Field("created_at", description="Sort field: price, start_date, created_at")
-    sort_order: str = Field("desc", description="Sort order: asc, desc")

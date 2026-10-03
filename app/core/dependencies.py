@@ -1,103 +1,136 @@
 # ============================================================
-# Travel Booking System — Dependency Injection
+# Travel Booking System — Dependency Injection (Tiêm phụ thuộc)
 # ============================================================
-# FastAPI dependencies for DB session, Redis, auth, RBAC.
+# File này cung cấp các "dependency" dùng chung cho tất cả API:
+# - get_db: Cung cấp kết nối database
+# - get_current_user: Xác thực token và trả về user hiện tại
+# - require_roles: Kiểm tra quyền truy cập theo vai trò
+#
+# CÁCH DÙNG trong Router:
+#   @router.get("/tours")
+#   async def get_tours(conn=Depends(get_db)):
+#       ...
+#
+#   @router.post("/bookings")
+#   async def create_booking(user=Depends(get_current_user)):
+#       ...
 # ============================================================
 
-from __future__ import annotations
-
-import uuid
 from typing import Annotated
+from uuid import UUID
 
+import asyncpg
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import get_db
 from app.core.exceptions import ForbiddenError, UnauthorizedError
-from app.core.security import decode_token
-from app.domain.entities.user import User
-from app.infrastructure.db.session import get_db_session
-from app.infrastructure.redis.client import get_redis
-from app.infrastructure.repositories.user_repository import UserRepository
+from app.core.security import giai_ma_token
 
-# OAuth2 scheme
+# OAuth2 scheme: Cho FastAPI biết token nằm ở header "Authorization: Bearer <token>"
+# tokenUrl: Đường dẫn API đăng nhập (hiển thị trên Swagger UI)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-# Type aliases for dependency injection
-DBSession = Annotated[AsyncSession, Depends(get_db_session)]
+# Type alias cho dependency kết nối DB (viết gọn hơn trong router)
+DBConn = Annotated[asyncpg.Connection, Depends(get_db)]
 
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    session: DBSession,
-) -> User:
+    conn: DBConn,
+) -> dict:
     """
-    Decode JWT token and return the authenticated user.
+    Xác thực JWT Token và trả về thông tin user hiện tại.
 
-    Raises:
-        UnauthorizedError: If token is invalid or user not found.
+    Luồng xử lý:
+    1. Lấy token từ header Authorization
+    2. Giải mã token để lấy user_id
+    3. Truy vấn database lấy thông tin user + roles
+    4. Kiểm tra user còn hoạt động không
+    5. Trả về dict chứa thông tin user
+
+    Nếu token sai/hết hạn/user không tồn tại → ném lỗi 401
     """
+    # Bước 1: Giải mã token
     try:
-        payload = decode_token(token)
+        payload = giai_ma_token(token)
     except JWTError:
-        raise UnauthorizedError("Invalid or expired token")
+        raise UnauthorizedError("Token không hợp lệ hoặc đã hết hạn")
 
+    # Bước 2: Kiểm tra loại token (phải là "access", không phải "refresh")
     if payload.get("type") != "access":
-        raise UnauthorizedError("Invalid token type")
+        raise UnauthorizedError("Loại token không hợp lệ")
 
+    # Bước 3: Lấy user_id từ token
     user_id = payload.get("sub")
     if not user_id:
-        raise UnauthorizedError("Invalid token payload")
+        raise UnauthorizedError("Token thiếu thông tin người dùng")
 
-    repo = UserRepository(session)
-    user = await repo.get_by_id(uuid.UUID(user_id))
-    if not user or not user.is_active:
-        raise UnauthorizedError("User not found or deactivated")
+    # Bước 4: Truy vấn database qua stored procedure
+    row = await conn.fetchrow(
+        "SELECT * FROM fn_lay_user_theo_id($1)",
+        UUID(user_id)
+    )
 
-    return user
+    if not row:
+        raise UnauthorizedError("Không tìm thấy tài khoản")
+
+    if not row["is_active"]:
+        raise UnauthorizedError("Tài khoản đã bị khóa")
+
+    # Bước 5: Trả về thông tin user dạng dict
+    return {
+        "id": row["user_id"],
+        "email": row["email"],
+        "full_name": row["full_name"],
+        "phone_number": row["phone_number"],
+        "is_active": row["is_active"],
+        "roles": list(row["role_names"]) if row["role_names"] else [],
+        "created_at": row["created_at"],
+    }
 
 
-# Typed dependencies
-CurrentUser = Annotated[User, Depends(get_current_user)]
+# Type alias: Inject user đã xác thực vào router
+CurrentUser = Annotated[dict, Depends(get_current_user)]
 
 
 def require_roles(*role_names: str):
     """
-    Dependency factory that enforces role-based access control.
+    Tạo dependency kiểm tra quyền truy cập theo vai trò.
 
-    Usage:
-        @router.get("/admin-only", dependencies=[Depends(require_roles("ADMIN"))])
-        async def admin_endpoint(): ...
+    Cách dùng:
+        # Chỉ Admin mới truy cập được
+        @router.get("/users", dependencies=[Depends(require_roles("ADMIN"))])
 
-        # Or inject the user:
-        async def endpoint(user: AdminUser): ...
+        # Admin hoặc Staff đều truy cập được
+        @router.post("/tours")
+        async def create_tour(user=Depends(require_roles("ADMIN", "STAFF"))):
+            ...
     """
-    async def role_checker(current_user: CurrentUser) -> User:
-        user_roles = {role.name for role in current_user.roles}
+    async def kiem_tra_quyen(current_user: CurrentUser) -> dict:
+        # Lấy danh sách vai trò của user
+        user_roles = set(current_user.get("roles", []))
+        # Danh sách vai trò được phép
         required = set(role_names)
 
+        # Kiểm tra: user có ít nhất 1 vai trò trong danh sách yêu cầu không
         if not user_roles.intersection(required):
             raise ForbiddenError(
-                f"Requires one of roles: {', '.join(role_names)}"
+                f"Bạn cần có vai trò {', '.join(role_names)} để thực hiện thao tác này"
             )
         return current_user
 
-    return role_checker
+    return kiem_tra_quyen
 
 
-AdminUser = Annotated[User, Depends(require_roles("ADMIN"))]
-StaffUser = Annotated[User, Depends(require_roles("ADMIN", "STAFF"))]
-CustomerUser = Annotated[User, Depends(require_roles("ADMIN", "STAFF", "CUSTOMER"))]
-
-# Aliases for backwards compatibility
-RequireAdmin = AdminUser
-RequireStaff = StaffUser
-RequireCustomer = CustomerUser
+# Các type alias tiện lợi cho từng mức quyền:
+AdminUser = Annotated[dict, Depends(require_roles("ADMIN"))]
+StaffUser = Annotated[dict, Depends(require_roles("ADMIN", "STAFF"))]
 
 
 def get_client_ip(request: Request) -> str | None:
-    """Extract client IP address from request."""
+    """Lấy địa chỉ IP của client từ request (dùng cho audit log)."""
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()

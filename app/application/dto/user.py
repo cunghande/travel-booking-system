@@ -1,44 +1,19 @@
 # ============================================================
-# Travel Booking System — User DTOs
+# Travel Booking System — DTO: Người dùng (User)
 # ============================================================
 
-from __future__ import annotations
-
-import uuid
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
-
-
-class RoleResponse(BaseModel):
-    """Role info response."""
-    id: int
-    name: str
-    description: str | None = None
-
-    model_config = {"from_attributes": True}
+from pydantic import BaseModel, Field
 
 
 class UserResponse(BaseModel):
-    """User info response."""
-    id: uuid.UUID
+    """Thông tin user trả về cho client (KHÔNG chứa mật khẩu)."""
+    id: UUID
     email: str
     full_name: str
+    phone_number: str | None = None
     is_active: bool
-    roles: list[RoleResponse] = []
+    roles: list[str] = Field(default_factory=list, description="Danh sách vai trò")
     created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class UpdateUserRequest(BaseModel):
-    """Update user profile request."""
-    full_name: str | None = Field(None, min_length=2, max_length=255)
-    email: EmailStr | None = None
-    is_active: bool | None = None
-
-
-class AssignRoleRequest(BaseModel):
-    """Assign/remove role request."""
-    role_name: str = Field(..., description="Role name: ADMIN, STAFF, or CUSTOMER")
