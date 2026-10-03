@@ -1,32 +1,29 @@
 # ============================================================
-# Travel Booking System — API Router: Bookings
+# Travel Booking System — API Router: Đặt tour (Bookings)
 # ============================================================
-# Định nghĩa các endpoints xử lý đơn đặt tour du lịch.
-# Phân quyền chặt chẽ giữa Khách hàng (Customer) và Nhân viên (Staff/Admin).
+# Các endpoints: Đặt tour, xem lịch sử đặt chỗ, quản lý toàn bộ đơn (Admin),
+# xác nhận duyệt và hủy đơn hoàn vé.
 # ============================================================
 
-from __future__ import annotations
-
+from typing import Optional
 import uuid
-
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Query, Request
 
 from app.application.dto.booking import (
+    BookingCreate,
     BookingListResponse,
     BookingResponse,
-    CreateBookingRequest,
 )
 from app.application.dto.common import PaginatedResponse
 from app.application.services.booking_service import BookingService
 from app.core.dependencies import (
     CurrentUser,
-    DBSession,
+    DBConn,
     StaffUser,
     get_client_ip,
 )
-from app.domain.value_objects.enums import BookingStatus
 
-router = APIRouter(prefix="/bookings", tags=["Bookings"])
+router = APIRouter(prefix="/bookings", tags=["Quản lý Đặt tour (Bookings)"])
 
 
 @router.post(
@@ -34,17 +31,17 @@ router = APIRouter(prefix="/bookings", tags=["Bookings"])
     response_model=BookingResponse,
     status_code=201,
     summary="Khách hàng tạo đơn đặt tour",
-    description="Tạo đơn đặt tour mới, tự động tính tổng tiền và trừ/giữ chỗ trên tour.",
+    description="Tạo đơn đặt tour mới, tự động kiểm tra số chỗ và giữ chỗ bằng khóa an toàn trong PostgreSQL.",
 )
 async def create_booking(
-    data: CreateBookingRequest,
-    session: DBSession,
+    data: BookingCreate,
+    conn: DBConn,
     current_user: CurrentUser,
     request: Request,
 ) -> BookingResponse:
-    service = BookingService(session)
+    service = BookingService(conn)
     return await service.create_booking(
-        user_id=current_user.id,
+        user_id=current_user["id"],
         data=data,
         ip_address=get_client_ip(request),
     )
@@ -53,18 +50,18 @@ async def create_booking(
 @router.get(
     "/my",
     response_model=PaginatedResponse[BookingListResponse],
-    summary="Xem lịch sử đặt tour của bản thân",
-    description="Khách hàng tra cứu toàn bộ các tour mình đã đặt và trạng thái hiện tại.",
+    summary="Lịch sử đặt tour của bản thân",
+    description="Khách hàng tra cứu các tour mình đã đặt và trạng thái hiện tại.",
 )
 async def list_my_bookings(
-    session: DBSession,
+    conn: DBConn,
     current_user: CurrentUser,
     page: int = Query(1, ge=1, description="Số trang"),
-    page_size: int = Query(10, ge=1, le=50, description="Số đơn trên mỗi trang"),
+    page_size: int = Query(10, ge=1, le=50, description="Số đơn mỗi trang"),
 ) -> PaginatedResponse[BookingListResponse]:
-    service = BookingService(session)
+    service = BookingService(conn)
     return await service.list_my_bookings(
-        user_id=current_user.id,
+        user_id=current_user["id"],
         page=page,
         page_size=page_size,
     )
@@ -73,23 +70,23 @@ async def list_my_bookings(
 @router.get(
     "",
     response_model=PaginatedResponse[BookingListResponse],
-    summary="Quản lý danh sách toàn bộ đơn đặt tour (Staff/Admin)",
-    description="Nhân viên hoặc Quản trị viên xem tất cả các đơn đặt tour trong hệ thống để xử lý.",
+    summary="Quản lý toàn bộ đơn đặt tour (Staff / Admin)",
+    description="Nhân viên hoặc Admin tra cứu danh sách đơn đặt tour của tất cả khách hàng.",
 )
 async def list_all_bookings(
-    session: DBSession,
-    _: StaffUser,
+    conn: DBConn,
+    staff: StaffUser,
     page: int = Query(1, ge=1, description="Số trang"),
-    page_size: int = Query(20, ge=1, le=100, description="Số đơn trên mỗi trang"),
-    status: BookingStatus | None = Query(None, description="Lọc theo trạng thái đơn"),
-    tour_id: uuid.UUID | None = Query(None, description="Lọc theo mã Tour cụ thể"),
+    page_size: int = Query(20, ge=1, le=100, description="Số đơn mỗi trang"),
+    status: Optional[str] = Query(None, description="Lọc trạng thái: PENDING_PAYMENT, CONFIRMED, CANCELLED"),
+    tour_id: Optional[uuid.UUID] = Query(None, description="Lọc theo Tour ID cụ thể"),
 ) -> PaginatedResponse[BookingListResponse]:
-    service = BookingService(session)
+    service = BookingService(conn)
     return await service.list_all_bookings(
-        page=page,
-        page_size=page_size,
         status=status,
         tour_id=tour_id,
+        page=page,
+        page_size=page_size,
     )
 
 
@@ -97,19 +94,22 @@ async def list_all_bookings(
     "/{booking_id}",
     response_model=BookingResponse,
     summary="Xem chi tiết một đơn đặt tour",
-    description="Xem đầy đủ thông tin đơn, tên tour, tiền vé, danh sách hành khách đi cùng.",
+    description="Xem thông tin chi tiết đơn, giá vé và danh sách hành khách đi kèm.",
 )
-async def get_booking_detail(
+async def get_booking(
     booking_id: uuid.UUID,
-    session: DBSession,
+    conn: DBConn,
     current_user: CurrentUser,
 ) -> BookingResponse:
-    service = BookingService(session)
-    is_staff = any(r.name in ["ADMIN", "STAFF"] for r in current_user.roles)
-    return await service.get_booking_detail(
+    # Kiểm tra xem user có phải Admin hoặc Staff không
+    roles = set(current_user.get("roles", []))
+    is_admin = bool(roles.intersection({"ADMIN", "STAFF"}))
+
+    service = BookingService(conn)
+    return await service.get_booking(
         booking_id=booking_id,
-        current_user_id=current_user.id,
-        is_admin_or_staff=is_staff,
+        current_user_id=current_user["id"],
+        is_admin=is_admin,
     )
 
 
@@ -117,20 +117,22 @@ async def get_booking_detail(
     "/{booking_id}/cancel",
     response_model=BookingResponse,
     summary="Hủy đơn đặt tour",
-    description="Khách hàng hoặc Quản trị viên hủy đơn đặt tour (giải phóng số chỗ trống lại cho tour).",
+    description="Hủy đơn đặt tour và tự động hoàn trả số chỗ trống về cho tour đó.",
 )
 async def cancel_booking(
     booking_id: uuid.UUID,
-    session: DBSession,
+    conn: DBConn,
     current_user: CurrentUser,
     request: Request,
 ) -> BookingResponse:
-    service = BookingService(session)
-    is_staff = any(r.name in ["ADMIN", "STAFF"] for r in current_user.roles)
+    roles = set(current_user.get("roles", []))
+    is_admin = bool(roles.intersection({"ADMIN", "STAFF"}))
+
+    service = BookingService(conn)
     return await service.cancel_booking(
         booking_id=booking_id,
-        current_user_id=current_user.id,
-        is_admin_or_staff=is_staff,
+        current_user_id=current_user["id"],
+        is_admin=is_admin,
         ip_address=get_client_ip(request),
     )
 
@@ -138,18 +140,18 @@ async def cancel_booking(
 @router.post(
     "/{booking_id}/confirm",
     response_model=BookingResponse,
-    summary="Xác nhận đơn đặt tour đã thanh toán (Staff/Admin)",
-    description="Nhân viên/Admin duyệt và chuyển trạng thái đơn sang CONFIRMED.",
+    summary="Xác nhận duyệt đơn đặt tour (Staff / Admin)",
+    description="Nhân viên hoặc Quản trị viên duyệt thanh toán và chuyển trạng thái sang CONFIRMED.",
 )
 async def confirm_booking(
     booking_id: uuid.UUID,
-    session: DBSession,
-    current_user: StaffUser,
+    conn: DBConn,
+    staff: StaffUser,
     request: Request,
 ) -> BookingResponse:
-    service = BookingService(session)
+    service = BookingService(conn)
     return await service.confirm_booking(
         booking_id=booking_id,
-        admin_id=current_user.id,
+        admin_id=staff["id"],
         ip_address=get_client_ip(request),
     )

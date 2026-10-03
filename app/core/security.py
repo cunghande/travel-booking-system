@@ -38,11 +38,8 @@ def ma_hoa_mat_khau(mat_khau_goc: str) -> str:
         # Kết quả: "$2b$12$LJ3m4ys3LzQXx7Xj0fR8ku..."
         # Mỗi lần gọi cho kết quả KHÁC NHAU (do salt ngẫu nhiên) nhưng đều hợp lệ
     """
-    # Chuyển chuỗi thành bytes (bcrypt yêu cầu bytes)
     mat_khau_bytes = mat_khau_goc.encode("utf-8")
-    # Tạo salt ngẫu nhiên (thêm vào mật khẩu trước khi hash, chống rainbow table attack)
     salt = bcrypt.gensalt()
-    # Hash và trả về dạng chuỗi
     return bcrypt.hashpw(mat_khau_bytes, salt).decode("utf-8")
 
 
@@ -60,7 +57,6 @@ def kiem_tra_mat_khau(mat_khau_nhap: str, mat_khau_hash: str) -> bool:
             mat_khau_hash.encode("utf-8"),
         )
     except Exception:
-        # Nếu hash không hợp lệ (bị hỏng/sai format) → trả về False
         return False
 
 
@@ -77,39 +73,32 @@ def kiem_tra_mat_khau(mat_khau_nhap: str, mat_khau_hash: str) -> bool:
 # - Refresh Token: Dài hạn (7 ngày), dùng để lấy access token mới khi hết hạn
 
 
-def tao_access_token(user_id: str | UUID, roles: list[str] | None = None) -> str:
+def tao_access_token(user_id: str | UUID, roles: list[str] | None = None, subject: str | UUID | None = None) -> str:
     """
     Tạo Access Token (token ngắn hạn dùng cho API).
-
-    Payload chứa trong token:
-    - sub (subject): ID của user
-    - roles: Danh sách vai trò (ADMIN, STAFF, CUSTOMER)
-    - exp (expiration): Thời điểm hết hạn
-    - iat (issued at): Thời điểm tạo
-    - type: Loại token (access)
+    Hỗ trợ cả tham số user_id hoặc subject.
     """
+    uid = subject if subject is not None else user_id
     het_han = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
-        "sub": str(user_id),           # ID người dùng
+        "sub": str(uid),               # ID người dùng
         "roles": roles or [],          # Vai trò (dùng để phân quyền)
         "exp": het_han,                # Thời điểm hết hạn
         "iat": datetime.now(timezone.utc),  # Thời điểm tạo
         "type": "access",             # Đánh dấu đây là access token
     }
-    # Ký token bằng SECRET_KEY (chỉ server mới biết key này)
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def tao_refresh_token(user_id: str | UUID) -> str:
+def tao_refresh_token(user_id: str | UUID = None, subject: str | UUID | None = None) -> str:
     """
     Tạo Refresh Token (token dài hạn dùng để làm mới access token).
-
-    Khi access token hết hạn, client gửi refresh token để lấy access token mới
-    mà không cần đăng nhập lại.
+    Hỗ trợ cả tham số user_id hoặc subject.
     """
+    uid = subject if subject is not None else user_id
     het_han = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {
-        "sub": str(user_id),
+        "sub": str(uid),
         "exp": het_han,
         "iat": datetime.now(timezone.utc),
         "type": "refresh",
@@ -120,12 +109,19 @@ def tao_refresh_token(user_id: str | UUID) -> str:
 def giai_ma_token(token: str) -> dict[str, Any]:
     """
     Giải mã JWT Token để lấy thông tin bên trong.
-
-    Nếu token hợp lệ → trả về payload (dict chứa sub, roles, exp...)
-    Nếu token hết hạn hoặc bị giả mạo → ném lỗi JWTError
     """
     return jwt.decode(
         token,
         settings.SECRET_KEY,
         algorithms=[settings.JWT_ALGORITHM],
     )
+
+
+# ==========================================
+# ALIASES TIẾNG ANH (tương thích cả 2 chuẩn gọi hàm)
+# ==========================================
+hash_password = ma_hoa_mat_khau
+verify_password = kiem_tra_mat_khau
+create_access_token = tao_access_token
+create_refresh_token = tao_refresh_token
+decode_token = giai_ma_token

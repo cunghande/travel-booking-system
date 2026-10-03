@@ -1,46 +1,39 @@
 # ============================================================
-# Travel Booking System — User Management API Routes
+# Travel Booking System — API Router: Quản trị người dùng (Users)
 # ============================================================
-# Admin-only endpoints for managing users and roles.
+# Các endpoints dành cho Quản trị viên (Admin) và Cập nhật hồ sơ cá nhân.
 # ============================================================
-
-from __future__ import annotations
 
 import uuid
-
+from typing import Optional
 from fastapi import APIRouter, Query, Request
 
-from app.application.dto.common import MessageResponse, PaginatedResponse
+from app.application.dto.common import PaginatedResponse
 from app.application.dto.user import (
     AssignRoleRequest,
-    UpdateUserRequest,
     UserResponse,
+    UserUpdateRequest,
 )
 from app.application.services.user_service import UserService
-from app.core.dependencies import (
-    AdminUser,
-    CurrentUser,
-    DBSession,
-    get_client_ip,
-)
+from app.core.dependencies import AdminUser, CurrentUser, DBConn, get_client_ip
 
-router = APIRouter(prefix="/users", tags=["User Management"])
+router = APIRouter(prefix="/users", tags=["Quản trị người dùng"])
 
 
 @router.get(
     "",
     response_model=PaginatedResponse[UserResponse],
-    summary="List all users",
-    description="Admin only. Returns paginated list of users.",
+    summary="Danh sách người dùng (Admin)",
+    description="Lấy danh sách tài khoản phân trang, lọc theo trạng thái kích hoạt.",
 )
 async def list_users(
-    session: DBSession,
+    conn: DBConn,
     admin: AdminUser,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    is_active: bool | None = Query(None),
+    page: int = Query(1, ge=1, description="Số trang"),
+    page_size: int = Query(20, ge=1, le=100, description="Số lượng mỗi trang"),
+    is_active: Optional[bool] = Query(None, description="Lọc theo trạng thái hoạt động"),
 ) -> PaginatedResponse[UserResponse]:
-    service = UserService(session)
+    service = UserService(conn)
     return await service.list_users(
         page=page,
         page_size=page_size,
@@ -51,79 +44,50 @@ async def list_users(
 @router.get(
     "/{user_id}",
     response_model=UserResponse,
-    summary="Get user by ID",
-    description="Admin only. Get a specific user's details.",
+    summary="Xem chi tiết người dùng (Admin)",
+    description="Tra cứu chi tiết một tài khoản bằng UUID.",
 )
 async def get_user(
     user_id: uuid.UUID,
-    session: DBSession,
+    conn: DBConn,
     admin: AdminUser,
 ) -> UserResponse:
-    service = UserService(session)
+    service = UserService(conn)
     return await service.get_user(user_id)
 
 
 @router.put(
-    "/{user_id}",
+    "/profile",
     response_model=UserResponse,
-    summary="Update user",
-    description="Admin only. Update user profile or activation status.",
+    summary="Cập nhật hồ sơ cá nhân",
+    description="Người dùng tự cập nhật họ tên, số điện thoại của mình.",
 )
-async def update_user(
-    user_id: uuid.UUID,
-    data: UpdateUserRequest,
-    session: DBSession,
-    request: Request,
-    admin: AdminUser,
+async def update_my_profile(
+    data: UserUpdateRequest,
+    conn: DBConn,
+    current_user: CurrentUser,
 ) -> UserResponse:
-    service = UserService(session)
-    return await service.update_user(
-        user_id,
-        data,
-        admin_id=admin.id,
-        ip_address=get_client_ip(request),
-    )
+    service = UserService(conn)
+    return await service.update_profile(current_user["id"], data)
 
 
 @router.post(
     "/{user_id}/roles",
     response_model=UserResponse,
-    summary="Assign role to user",
-    description="Admin only. Assign a role (ADMIN, STAFF, CUSTOMER) to a user.",
+    summary="Gán vai trò cho người dùng (Admin)",
+    description="Quản trị viên gán thêm quyền (ADMIN, STAFF, CUSTOMER) cho tài khoản.",
 )
 async def assign_role(
     user_id: uuid.UUID,
     data: AssignRoleRequest,
-    session: DBSession,
+    conn: DBConn,
     request: Request,
     admin: AdminUser,
 ) -> UserResponse:
-    service = UserService(session)
+    service = UserService(conn)
     return await service.assign_role(
         user_id,
         data,
-        admin_id=admin.id,
-        ip_address=get_client_ip(request),
-    )
-
-
-@router.delete(
-    "/{user_id}/roles",
-    response_model=UserResponse,
-    summary="Remove role from user",
-    description="Admin only. Remove a role from a user.",
-)
-async def remove_role(
-    user_id: uuid.UUID,
-    data: AssignRoleRequest,
-    session: DBSession,
-    request: Request,
-    admin: AdminUser,
-) -> UserResponse:
-    service = UserService(session)
-    return await service.remove_role(
-        user_id,
-        data,
-        admin_id=admin.id,
+        admin_id=admin["id"],
         ip_address=get_client_ip(request),
     )

@@ -1,80 +1,78 @@
 # ============================================================
-# Travel Booking System — Auth API Routes
+# Travel Booking System — API Router: Xác thực (Auth)
 # ============================================================
-# Thin API layer — delegates all logic to AuthService.
+# Các endpoints: Đăng ký, Đăng nhập, Làm mới token và Xem hồ sơ cá nhân.
 # ============================================================
 
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
 from app.application.dto.auth import (
     LoginRequest,
-    RegisterRequest,
     RefreshRequest,
+    RegisterRequest,
     TokenResponse,
 )
 from app.application.dto.user import UserResponse
 from app.application.services.auth_service import AuthService
-from app.core.dependencies import CurrentUser, DBSession, get_client_ip
+from app.core.dependencies import CurrentUser, DBConn, get_client_ip
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Xác thực & Tài khoản"])
 
 
 @router.post(
     "/register",
     response_model=UserResponse,
     status_code=201,
-    summary="Register a new user",
-    description="Create a new user account with CUSTOMER role.",
+    summary="Đăng ký tài khoản mới",
+    description="Tạo tài khoản khách hàng (CUSTOMER). Mật khẩu được mã hóa an toàn bằng bcrypt.",
 )
 async def register(
     data: RegisterRequest,
-    session: DBSession,
+    conn: DBConn,
     request: Request,
 ) -> UserResponse:
-    service = AuthService(session)
+    service = AuthService(conn)
     return await service.register(data, ip_address=get_client_ip(request))
 
 
 @router.post(
     "/login",
     response_model=TokenResponse,
-    summary="Login",
-    description="Authenticate with email and password. Returns JWT tokens.",
+    summary="Đăng nhập",
+    description="Xác thực qua email và mật khẩu. Trả về cặp JWT Access Token và Refresh Token.",
 )
 async def login(
     data: LoginRequest,
-    session: DBSession,
+    conn: DBConn,
     request: Request,
 ) -> TokenResponse:
-    service = AuthService(session)
+    service = AuthService(conn)
     return await service.login(data, ip_address=get_client_ip(request))
 
 
 @router.post(
     "/refresh",
     response_model=TokenResponse,
-    summary="Refresh token",
-    description="Get a new access token using a valid refresh token.",
+    summary="Làm mới Access Token",
+    description="Cấp Access Token mới khi token cũ hết hạn bằng Refresh Token hợp lệ.",
 )
 async def refresh_token(
     data: RefreshRequest,
-    session: DBSession,
+    conn: DBConn,
 ) -> TokenResponse:
-    service = AuthService(session)
+    service = AuthService(conn)
     return await service.refresh_token(data.refresh_token)
 
 
 @router.get(
     "/me",
     response_model=UserResponse,
-    summary="Get current user",
-    description="Get the profile of the currently authenticated user.",
+    summary="Xem thông tin tài khoản hiện tại",
+    description="Lấy hồ sơ cá nhân của người dùng đang đăng nhập dựa trên JWT Bearer token.",
 )
 async def get_me(
     current_user: CurrentUser,
-    session: DBSession,
+    conn: DBConn,
 ) -> UserResponse:
-    service = AuthService(session)
-    return await service.get_current_user(current_user.id)
+    service = AuthService(conn)
+    return await service.get_current_user(current_user["id"])

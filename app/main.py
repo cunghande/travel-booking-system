@@ -3,6 +3,7 @@
 # ============================================================
 # Tích hợp toàn diện: Middleware Pipeline + Clean Architecture
 # Phục vụ API RESTful v1 + Giao diện Web (Frontend UI)
+# Sử dụng kết nối PostgreSQL local qua Connection Pool asyncpg thuần
 # ============================================================
 
 import os
@@ -16,8 +17,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
+from app.core.database import close_db_pool, init_db_pool
 from app.core.exceptions import AppException
-from app.infrastructure.redis.client import close_redis_pool
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
@@ -28,14 +29,23 @@ from app.middleware.timing import TimingMiddleware
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Quản lý vòng đời (Lifespan) của ứng dụng FastAPI.
-    - Code trước yield: Thực thi khi Server khởi động (Startup).
-    - Code sau yield: Thực thi khi Server tắt (Shutdown).
+    - Code trước yield: Thực thi khi Server khởi động (Startup) -> Tạo Pool asyncpg.
+    - Code sau yield: Thực thi khi Server tắt (Shutdown) -> Đóng Pool kết nối.
     """
     print(f"[LIFESPAN] 🚀 Ứng dụng '{settings.PROJECT_NAME}' (v{settings.VERSION}) đang khởi động...")
     print(f"[LIFESPAN] 🌐 Môi trường: {settings.ENVIRONMENT} | Debug: {settings.DEBUG}")
+
+    # Khởi tạo connection pool tới PostgreSQL local
+    try:
+        await init_db_pool()
+        print("[LIFESPAN] ✅ Đã kết nối cơ sở dữ liệu PostgreSQL local thành công.")
+    except Exception as e:
+        print(f"[LIFESPAN] ⚠️ Chưa thể kết nối PostgreSQL ({e}). Hãy đảm bảo dịch vụ PostgreSQL đang chạy.")
+
     yield
+
     print("[LIFESPAN] 🛑 Ứng dụng đang tắt: Thu hồi và dọn dẹp tài nguyên...")
-    await close_redis_pool()
+    await close_db_pool()
 
 
 # Khởi tạo FastAPI App
@@ -51,7 +61,6 @@ app = FastAPI(
 
 # ==============================================================================
 # ĐĂNG KÝ CHUỖI MIDDLEWARE (MIDDLEWARE PIPELINE)
-# Thứ tự Inbound (LIFO): RequestId -> Logging -> Timing -> SecurityHeaders -> CORS -> Router
 # ==============================================================================
 
 # 1. CORS Middleware

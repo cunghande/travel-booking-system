@@ -82,6 +82,13 @@ async def get_db():
             result = await conn.fetch("SELECT * FROM tours")
     """
     pool = lay_pool()
-    # acquire() = mượn 1 kết nối, tự động trả lại khi thoát khối async with
     async with pool.acquire() as connection:
         yield connection
+
+
+# ==========================================
+# ALIASES TIẾNG ANH (tương thích cả 2 chuẩn gọi hàm)
+# ==========================================
+init_db_pool = khoi_tao_pool
+close_db_pool = dong_pool
+get_pool = lay_pool

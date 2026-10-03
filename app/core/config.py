@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     # --- Cấu hình API ---
     API_V1_PREFIX: str = "/api/v1"
+    API_V1_STR: str = "/api/v1"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
@@ -42,7 +43,6 @@ class Settings(BaseSettings):
     DB_POOL_MAX: int = 10      # Số kết nối tối đa khi tải cao
 
     # --- Cấu hình JWT (Token xác thực) ---
-    # SECRET_KEY dùng để ký và xác minh token. Trong production phải đổi thành chuỗi ngẫu nhiên dài.
     SECRET_KEY: str = "thay-doi-key-nay-trong-production-it-nhat-32-ky-tu-nhe"
     JWT_ALGORITHM: str = "HS256"                    # Thuật toán mã hóa token
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24      # Token hết hạn sau 24 giờ
@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Chuyển chuỗi CORS thành danh sách."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def BACKEND_CORS_ORIGINS(self) -> list[str]:
+        """Tương thích alias cũ."""
+        return self.cors_origins_list
 
     # --- Cấu hình Pydantic ---
     model_config = SettingsConfigDict(
