@@ -1,111 +1,64 @@
-# 🚀 Hướng dẫn Chạy Dự án Backend — Travel Booking System
+# 🚀 Hướng dẫn Chạy Dự án Backend & Web UI — Travel Booking System
 
-Tài liệu này hướng dẫn chi tiết các bước khởi động và chạy thử Backend trên máy tính cá nhân (Windows).
+Tài liệu này hướng dẫn chi tiết các bước khởi động và chạy giao diện trang web trên máy tính (Windows / macOS).
 
 ---
 
-## ⚡ 1. Câu lệnh chạy nhanh (Quick Start)
+## ⚡ 1. Câu lệnh chạy nhanh nhất (Khuyên dùng)
 
-Mở terminal (PowerShell) tại thư mục `d:\Code\Travel-Booking-System` và chạy lệnh:
+Mở terminal **PowerShell** tại thư mục dự án `d:\Code\Travel-Booking-System` và copy/paste lệnh sau (đã sửa lỗi UTF-8):
 
 ```powershell
-# Chạy server với chế độ tự động reload khi sửa code:
-.\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+$env:PYTHONUTF8=1; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-> 💡 Hoặc nếu bạn đã kích hoạt virtual environment:
+> **Lưu ý:** Không copy ký tự `>` ở đầu câu lệnh. Nếu câu lệnh trên báo lỗi không tìm thấy `python`, hãy dùng:
 > ```powershell
-> .\venv\Scripts\Activate.ps1
-> uvicorn app.main:app --reload
+> $env:PYTHONUTF8=1; .\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 > ```
 
 ---
 
-## 🛠️ 2. Hướng dẫn các cách chạy chi tiết
+## 🛠️ 2. Các bước chuẩn bị chi tiết
 
-### 👉 Cách 1: Chạy trực tiếp trên Windows (Khuyên dùng khi dev)
+### Bước 1: Khởi tạo Cơ sở dữ liệu MySQL 8.0
+Mở công cụ MySQL Workbench / Navicat / DBeaver và chạy 4 file SQL trong thư mục `database/` theo thứ tự:
+1. `01_tao_database.sql` (Tạo CSDL `tour_booking_db`)
+2. `02_tao_bang.sql` (Tạo các bảng `users`, `tours`, `bookings`, `passengers`)
+3. `03_tao_stored_procedures.sql` (Tích hợp Stored Procedure chống tranh chấp chỗ `FOR UPDATE`)
+4. `04_du_lieu_mau.sql` (Nạp tour mẫu và tài khoản Admin)
 
-#### Bước 1: Đảm bảo PostgreSQL & Redis đang chạy
-Hệ thống cần Database PostgreSQL (cổng `5432`) và Redis (cổng `6379`). Nếu bạn đã cài Docker Desktop, bạn có thể bật riêng Database và Redis cực nhẹ bằng lệnh:
+### Bước 2: Khởi chạy Backend Server & Giao Diện Web
+Mở PowerShell tại thư mục dự án và chạy:
 ```powershell
-docker compose up -d postgres redis
+$env:PYTHONUTF8=1; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-#### Bước 2: Chạy Database Migration (Tạo các bảng nếu chưa có)
-```powershell
-.\venv\Scripts\python.exe -m alembic upgrade head
-```
-
-#### Bước 3: Khởi chạy Backend Server
-```powershell
-.\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Khi màn hình hiện:
+Khi terminal hiện dòng:
 ```text
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started server process
 INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
-tức là server backend đã sẵn sàng nhận request!
+tức là hệ thống đã sẵn sàng!
 
 ---
 
-### 👉 Cách 2: Chạy trọn gói qua Docker Compose (Không cần cài Python)
+## 🌐 3. Mở trang web và kiểm tra
 
-Nếu máy bạn đã có **Docker Desktop**:
-```powershell
-# 1. Khởi động toàn bộ dịch vụ (API + PostgreSQL + Redis)
-docker compose up -d
-
-# 2. Xem logs server
-docker compose logs -f api
-
-# 3. Dừng hệ thống khi không dùng
-docker compose down
-```
-
----
-
-## 🔍 3. Kiểm tra xem Server đã chạy thành công chưa
-
-Sau khi chạy lệnh ở mục 1 hoặc 2, bạn mở trình duyệt web:
+Mở trình duyệt web (Chrome, Edge, Brave...) và truy cập các liên kết sau:
 
 | Mục | Đường dẫn (URL) | Mô tả |
 | :--- | :--- | :--- |
-| **Giao diện Web Trực quan (Frontend)** | [http://localhost:8000/](http://localhost:8000/) | Giao diện đặt tour trực tiếp: duyệt tour, xem lịch trình, tính tiền và đặt chỗ |
-| **Trang tài liệu tương tác (Swagger UI)** | [http://localhost:8000/docs](http://localhost:8000/docs) | Giao diện tương tác để xem và test thử ngay tất cả 19 endpoints |
-| **Tài liệu dạng ReDoc** | [http://localhost:8000/redoc](http://localhost:8000/redoc) | Đọc tài liệu chuẩn OpenAPI |
-| **Kiểm tra sức khỏe (Health Check)** | [http://localhost:8000/health](http://localhost:8000/health) | Trả về `{"status": "healthy"}` |
+| **Giao diện Trang chủ Web (Frontend UI)** | [http://127.0.0.1:8000/](http://127.0.0.1:8000/) | Đặt tour du lịch 5 sao trực quan |
+| **Kiểm tra sức khỏe hệ thống (Health Check)** | [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) | Trả về `{"status": "healthy"}` |
+| **Tài liệu API (Swagger UI)** | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) | Trang kiểm thử API công khai |
 
 ---
 
 ## 🧪 4. Hướng dẫn Test API bằng Postman
 
-Dự án đã chuẩn bị sẵn file Collection gồm **29 API mẫu** (đầy đủ Auth, Users, Tours, Bookings) có sẵn script tự động lưu Token:
-
-1. Mở ứng dụng **Postman**.
-2. Nhấn nút **Import** (góc trên bên trái) $\rightarrow$ Kéo thả file:
-   `d:\Code\Travel-Booking-System\Travel_Booking_System.postman_collection.json`
-3. Thứ tự test khuyến nghị theo luồng thực tế:
-   - **Bước 1 (Đăng nhập)**: Mở thư mục `01. Auth` $\rightarrow$ Nhấn Send request **`Login Admin`** (hoặc `Register Customer`). Token sẽ tự động được lưu vào Postman.
-   - **Bước 2 (Tạo Tour)**: Mở thư mục `03. Tour Management` $\rightarrow$ Nhấn Send **`Create Tour (with Itinerary)`** để tạo tour và **`Publish Tour`** để mở bán.
-   - **Bước 3 (Đặt Tour - Mới)**: Mở thư mục **`04. Booking Management`** $\rightarrow$ Nhấn Send **`Create Booking (Customer)`** để đặt chỗ (hệ thống tự tính tiền vé và kiểm tra số chỗ trống).
-   - **Bước 4 (Xem lịch sử đặt)**: Nhấn Send **`My Bookings (Customer)`** hoặc **`Get Booking Detail`**.
-   - **Bước 5 (Duyệt hoặc Hủy đơn)**: Admin nhấn **`Confirm Booking`** để xác nhận thanh toán, hoặc khách nhấn **`Cancel Booking`** để hủy đơn.
-
----
-
-## 🧪 5. Chạy Automated Tests (Kiểm thử tự động)
-
-Để kiểm tra độ ổn định và tính đúng đắn của toàn bộ code (35 tests):
-
-```powershell
-# Chạy toàn bộ unit test (Auth, Tour, Booking)
-.\venv\Scripts\python.exe -m pytest tests/unit -v
-
-# Chạy riêng kiểm thử nghiệp vụ Tour
-.\venv\Scripts\python.exe -m pytest tests/unit/test_tour_service.py -v
-
-# Chạy riêng kiểm thử nghiệp vụ Đặt tour (Booking)
-.\venv\Scripts\python.exe -m pytest tests/unit/test_booking_service.py -v
-```
+Kéo thả file `Travel_Booking_System.postman_collection.json` trong thư mục dự án vào **Postman**:
+1. **01. Auth**: Nhấn Send `Login Admin` (để nhận JWT Token).
+2. **03. Tour Management**: Nhấn Send `Get Tours` hoặc `Create Tour`.
+3. **04. Booking Management**: Nhấn Send `Create Booking (Customer)` để thử tạo đơn đặt tour.
