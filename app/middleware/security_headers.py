@@ -41,18 +41,29 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers[header_name] = header_value
 
         # 2. Xử lý Content-Security-Policy (CSP)
-        # Trang Swagger UI (/docs) và ReDoc (/redoc) cần tải style/script từ CDN của FastAPI
+        # Trang Swagger UI (/docs), ReDoc (/redoc) và Giao diện Frontend (/)
         path = request.url.path
         if path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi.json"):
-            # CSP nới lỏng cho Swagger UI
+            # CSP cho Swagger UI
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "img-src 'self' data: https://fastapi.tiangolo.com;"
             )
+        elif path == "/" or path.startswith("/static"):
+            # CSP cho Giao diện Frontend Web
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self' 'unsafe-inline' data:; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+                "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+                "img-src 'self' data: https: blob:; "
+                "connect-src 'self' http://127.0.0.1:8000 http://localhost:8000; "
+                "frame-ancestors 'none';"
+            )
         else:
-            # CSP nghiêm ngặt cho toàn bộ các API endpoint còn lại
+            # CSP cho các API endpoint còn lại
             response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none';"
 
         return response

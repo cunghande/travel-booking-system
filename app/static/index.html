@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wanderlust — Hệ Thống Đặt Tour Du Lịch Cao Cấp</title>
-  <meta name="description" content="Trải nghiệm du lịch đẳng cấp cùng Wanderlust. Đặt tour Hạ Long, Đà Nẵng, Phú Quốc, Sapa với lịch trình chi tiết và chuẩn mực nghỉ dưỡng thượng lưu.">
+  <meta name="description" content="Trải nghiệm du lịch đẳng cấp cùng Wanderlust. Đặt tour Hạ Long, Đà Nẵng, Phú Quốc, Sapa với lịch trình chi tiết và chuẩn mực nghỉ dưỡng 5 sao.">
   
-  <!-- Google Fonts: Playfair Display (Serif) & Plus Jakarta Sans (Sans) -->
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=fresh_20261005_v5">
 </head>
 <body>
 
@@ -24,36 +24,37 @@
     <div class="nav-container">
       <a href="#" class="nav-logo" id="logoLink">
         <span class="logo-compass">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
-          </svg>
+          <i class="fa-solid fa-compass"></i>
         </span>
         <div class="logo-text">
           <span class="brand-name">Wanderlust</span>
-          <span class="brand-tagline">Curated Escapes</span>
+          <span class="brand-tagline">Du Lịch & Nghỉ Dưỡng</span>
         </div>
       </a>
 
       <nav class="nav-menu">
-        <a href="#tours-section" class="nav-link active"><span>Khám Phá Tour</span></a>
-        <a href="#results-section" class="nav-link"><span>Chuyến Bay & Resort</span></a>
-        <a href="#about-section" class="nav-link"><span>Đặc Quyền</span></a>
-        <a href="javascript:void(0)" class="nav-link" id="myBookingsNavBtn"><span>Đơn Của Tôi</span></a>
+        <a href="#tours-section" class="nav-link active">
+          <i class="fa-solid fa-map-location-dot"></i> Khám Phá Tour
+        </a>
+        <a href="#results-section" class="nav-link">
+          <i class="fa-solid fa-plane-departure"></i> Vé Máy Bay & Resort
+        </a>
+        <a href="#about-section" class="nav-link">
+          <i class="fa-solid fa-shield-halved"></i> Đặc Quyền
+        </a>
+        <a href="javascript:void(0)" class="nav-link" id="myBookingsNavBtn">
+          <i class="fa-solid fa-ticket"></i> Đơn Của Tôi
+        </a>
         <a href="/docs" target="_blank" class="nav-link nav-badge-link">
-          <span>Swagger API</span>
+          <i class="fa-solid fa-code"></i> Swagger API
           <span class="pulse-dot"></span>
         </a>
       </nav>
 
       <div class="nav-actions" id="navActions">
-        <button class="btn btn-ghost" id="loginBtn">Đăng Nhập</button>
-        <button class="btn btn-coral" id="registerBtn">
-          <span>Bắt Đầu Hành Trình</span>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
+        <button type="button" class="btn btn-login" id="loginBtn">Đăng Nhập</button>
+        <button type="button" class="btn btn-register" id="registerBtn">
+          <i class="fa-solid fa-sparkles"></i> Đăng Ký
         </button>
       </div>
     </div>
@@ -61,35 +62,31 @@
 
   <!-- ================= HERO SECTION ================= -->
   <section class="hero-section" id="hero">
-    <!-- Ken Burns Slideshow Media Background -->
+    <!-- Cinematic Bright Slideshow -->
     <div class="hero-media">
       <div class="hero-slide active" style="background-image: url('https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=2000&q=85');"></div>
       <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=2000&q=85');"></div>
       <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=85');"></div>
-      <div class="hero-overlay-gradient"></div>
-      <div class="hero-grain"></div>
+      <div class="hero-overlay"></div>
     </div>
 
     <div class="hero-container">
       <div class="hero-content">
-        <!-- Curated Collection Badge -->
-        <div class="hero-badge animate-fade-in">
-          <span class="badge-sparkle">✦</span>
-          <span>Bộ Sưu Tập Nghỉ Dưỡng Thượng Lưu 2026</span>
+        <div class="hero-badge">
+          <i class="fa-solid fa-sparkles"></i>
+          <span>HÀNH TRÌNH NGHỈ DƯỠNG ĐẲNG CẤP 2026</span>
         </div>
 
-        <!-- Expressive Editorial Headline -->
-        <h1 class="hero-title animate-title">
-          Chạm Vào Những <br>
-          <span class="title-serif-italic">Chân Trời Kỳ Vĩ</span>
+        <h1 class="hero-title">
+          Khám Phá Những Vùng Đất <br>
+          <span class="title-gradient">Mơ Ước Cùng Wanderlust</span>
         </h1>
 
-        <p class="hero-description animate-fade-in-delayed">
-          Hơn 50+ hành trình tuyển chọn độc bản: từ du thuyền ngắm hoàng hôn giữa lòng Vịnh Hạ Long,
-          đêm phố cổ Hội An hoa đăng cho đến những hòn đảo ngọc hoang sơ ngập tràn ánh nắng.
+        <p class="hero-description">
+          Hơn 50+ hành trình tuyển chọn đỉnh cao: chiêm ngưỡng vịnh biển ngọc bích, thưởng ngoạn hoàng hôn biển đảo và tận hưởng dịch vụ chuẩn mực 5 sao quốc tế.
         </p>
 
-        <!-- Highlights Strip -->
+        <!-- Highlights Bar -->
         <div class="hero-highlights">
           <div class="highlight-item">
             <span class="highlight-number">100%</span>
@@ -110,59 +107,39 @@
     </div>
 
     <!-- Scroll Cue -->
-    <a href="#searchWidgetWrapper" class="hero-scroll-cue" aria-label="Cuộn xuống để khám phá">
-      <span class="scroll-mouse">
-        <span class="scroll-wheel"></span>
-      </span>
-      <span class="scroll-text">Khám phá</span>
+    <a href="#searchWidgetWrapper" class="hero-scroll-cue" aria-label="Cuộn xuống">
+      <span class="scroll-mouse"><span class="scroll-wheel"></span></span>
+      <span class="scroll-text">Khám Phá Ngay</span>
     </a>
   </section>
 
-  <!-- ================= FLOATING GLASS SEARCH WIDGET ================= -->
+  <!-- ================= FLOATING SEARCH WIDGET ================= -->
   <div class="search-floating-wrapper" id="searchWidgetWrapper">
     <div class="search-floating-card">
-      <!-- Search Category Tabs with Sliding Pill -->
+      <!-- Search Tabs -->
       <div class="search-tabs-bar">
         <div class="search-tabs-pill-bg" id="searchTabPill"></div>
         <button type="button" class="search-tab-btn active" data-tab="tours">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
-          </svg>
+          <i class="fa-solid fa-umbrella-beach"></i>
           <span>Tour Trọn Gói</span>
         </button>
-
         <button type="button" class="search-tab-btn" data-tab="flights" onclick="switchResultView('flights')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path>
-          </svg>
+          <i class="fa-solid fa-plane"></i>
           <span>Vé Máy Bay</span>
           <span class="tab-tag-badge">Boarding Pass</span>
         </button>
-
         <button type="button" class="search-tab-btn" data-tab="resorts" onclick="switchResultView('hotels')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 21h18"></path>
-            <path d="M19 21v-4"></path>
-            <path d="M19 17a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3v16"></path>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            <path d="M8 21v-4"></path>
-            <path d="M8 17a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"></path>
-          </svg>
+          <i class="fa-solid fa-hotel"></i>
           <span>Khách Sạn & Resort</span>
-          <span class="tab-tag-badge tag-hot">Hot</span>
+          <span class="tab-tag-badge tag-hot">Ưu đãi</span>
         </button>
       </div>
 
-      <!-- Main Filter Fields Grid -->
+      <!-- Main Filter Form -->
       <div class="search-fields-grid">
-        <!-- Field 1: Destination with Swap Button -->
         <div class="field-box field-destination" id="fieldDestinationBox">
           <div class="field-icon-wrap">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
+            <i class="fa-solid fa-location-dot"></i>
           </div>
           <div class="field-content">
             <label for="filterDestination" class="field-label">Bạn muốn đi đâu?</label>
@@ -174,31 +151,21 @@
               autocomplete="off"
             >
           </div>
-          <button type="button" class="btn-swap-location" id="btnSwapLocations" title="Đảo chiều tìm kiếm" aria-label="Đổi chiều">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="m16 3 4 4-4 4"></path>
-              <path d="M20 7H4"></path>
-              <path d="m8 21-4-4 4-4"></path>
-              <path d="M4 17h16"></path>
-            </svg>
+          <button type="button" class="btn-swap-location" id="btnSwapLocations" title="Đảo chiều" aria-label="Đổi chiều">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i>
           </button>
         </div>
 
         <div class="field-separator"></div>
 
-        <!-- Field 2: Category -->
         <div class="field-box field-category" id="fieldCategoryBox">
           <div class="field-icon-wrap">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-              <polyline points="2 17 12 22 22 17"></polyline>
-              <polyline points="2 12 12 17 22 12"></polyline>
-            </svg>
+            <i class="fa-solid fa-layer-group"></i>
           </div>
           <div class="field-content">
             <label for="filterCategory" class="field-label">Phong cách du lịch</label>
             <select id="filterCategory" class="field-select">
-              <option value="">Tất cả phong cách</option>
+              <option value="">Tất cả thể loại</option>
               <option value="Adventure">Khám Phá & Phiêu Lưu</option>
               <option value="Beach & Resort">Nghỉ Dưỡng Vịnh & Biển</option>
               <option value="Cultural">Di Sản & Văn Hóa</option>
@@ -208,13 +175,9 @@
 
         <div class="field-separator"></div>
 
-        <!-- Field 3: Max Budget -->
         <div class="field-box field-price" id="fieldPriceBox">
           <div class="field-icon-wrap">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="2" x2="12" y2="22"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
+            <i class="fa-solid fa-wallet"></i>
           </div>
           <div class="field-content">
             <label for="filterMaxPrice" class="field-label">Ngân sách tối đa</label>
@@ -227,13 +190,9 @@
           </div>
         </div>
 
-        <!-- CTA Button -->
         <div class="field-action">
-          <button class="btn btn-search-primary" id="btnSearchTours">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
+          <button type="button" class="btn btn-search-primary" id="btnSearchTours">
+            <i class="fa-solid fa-magnifying-glass"></i>
             <span>Tìm Chuyến Đi</span>
           </button>
         </div>
@@ -241,7 +200,7 @@
 
       <!-- Quick Suggestion Chips -->
       <div class="search-quick-tags">
-        <span class="tags-title">Điểm đến thịnh hành:</span>
+        <span class="tags-title">Gợi ý phổ biến:</span>
         <button type="button" class="quick-chip" data-dest="Hạ Long">Vịnh Hạ Long</button>
         <button type="button" class="quick-chip" data-dest="Đà Nẵng">Đà Nẵng - Hội An</button>
         <button type="button" class="quick-chip" data-dest="Phú Quốc">Đảo Ngọc Phú Quốc</button>
@@ -258,19 +217,18 @@
         <div class="section-header-left">
           <div class="editorial-kicker">
             <span class="kicker-line"></span>
-            <span class="kicker-text">Bộ Sưu Tập Tuyển Chọn</span>
+            <span class="kicker-text">Tour Nổi Bật 2026</span>
           </div>
           <h2 class="section-title">
-            Những Chuyến Đi <span class="title-serif-italic">Được Yêu Thích Nhất</span>
+            Các Hành Trình Đang Mở Bán
           </h2>
         </div>
 
-        <!-- Category Pills -->
         <div class="category-pills-bar" id="categoryPills">
-          <button class="pill active" data-category="">Tất Cả Hành Trình</button>
-          <button class="pill" data-category="Adventure">Khám Phá</button>
-          <button class="pill" data-category="Beach & Resort">Nghỉ Dưỡng Biển</button>
-          <button class="pill" data-category="Cultural">Di Sản & Văn Hóa</button>
+          <button type="button" class="pill active" data-category="">Tất Cả</button>
+          <button type="button" class="pill" data-category="Adventure">Khám Phá</button>
+          <button type="button" class="pill" data-category="Beach & Resort">Nghỉ Dưỡng Biển</button>
+          <button type="button" class="pill" data-category="Cultural">Văn Hóa & Di Sản</button>
         </div>
       </div>
 
@@ -283,37 +241,26 @@
     </div>
   </section>
 
-  <!-- ================= RESULTS SHOWCASE: FLIGHTS & LUXURY STAYS ================= -->
+  <!-- ================= RESULTS SHOWCASE: FLIGHTS & RESORTS ================= -->
   <section class="results-section" id="results-section">
     <div class="container">
       <div class="section-header">
         <div class="section-header-left">
           <div class="editorial-kicker">
             <span class="kicker-line"></span>
-            <span class="kicker-text">Trải Nghiệm Di Chuyển & Lưu Trú</span>
+            <span class="kicker-text">Trải Nghiệm Độc Quyền</span>
           </div>
           <h2 class="section-title">
-            Chuyến Bay & <span class="title-serif-italic">Khu Nghỉ Dưỡng Sang Trọng</span>
+            Chuyến Bay & Khu Nghỉ Dưỡng Sang Trọng
           </h2>
         </div>
         
         <div class="results-toggle-group">
           <button type="button" class="toggle-btn active" id="btnShowFlights" onclick="switchResultView('flights')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path>
-            </svg>
-            Vé Máy Bay (Boarding Pass)
+            <i class="fa-solid fa-plane-up"></i> Vé Máy Bay (Boarding Pass)
           </button>
           <button type="button" class="toggle-btn" id="btnShowHotels" onclick="switchResultView('hotels')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 21h18"></path>
-              <path d="M19 21v-4"></path>
-              <path d="M19 17a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3v16"></path>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-              <path d="M8 21v-4"></path>
-              <path d="M8 17a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"></path>
-            </svg>
-            Resort & Khách Sạn
+            <i class="fa-solid fa-hotel"></i> Resort & Khách Sạn 5 Sao
           </button>
         </div>
       </div>
@@ -343,16 +290,12 @@
               <div class="flight-trajectory-wrap">
                 <span class="flight-duration">1 giờ 20 phút • Bay thẳng</span>
                 <div class="trajectory-track">
-                  <svg class="flight-path-svg" viewBox="0 0 200 40" preserveAspectRatio="none">
-                    <path class="flight-dashed-path" d="M 10 25 Q 100 -5 190 25" fill="none" stroke-dasharray="5 5"></path>
-                  </svg>
+                  <div class="flight-track-line"></div>
                   <div class="gliding-plane-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
-                    </svg>
+                    <i class="fa-solid fa-plane"></i>
                   </div>
                 </div>
-                <span class="flight-date">Khởi hành: 15 Tháng 4, 2027</span>
+                <span class="flight-date">Khởi hành: 15/04/2027</span>
               </div>
 
               <div class="city-box destination">
@@ -418,16 +361,12 @@
               <div class="flight-trajectory-wrap">
                 <span class="flight-duration">1 giờ 05 phút • Bay thẳng</span>
                 <div class="trajectory-track">
-                  <svg class="flight-path-svg" viewBox="0 0 200 40" preserveAspectRatio="none">
-                    <path class="flight-dashed-path" d="M 10 25 Q 100 -5 190 25" fill="none" stroke-dasharray="5 5"></path>
-                  </svg>
+                  <div class="flight-track-line"></div>
                   <div class="gliding-plane-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
-                    </svg>
+                    <i class="fa-solid fa-plane"></i>
                   </div>
                 </div>
-                <span class="flight-date">Khởi hành: 20 Tháng 4, 2027</span>
+                <span class="flight-date">Khởi hành: 20/04/2027</span>
               </div>
 
               <div class="city-box destination">
@@ -477,24 +416,15 @@
           <div class="hotel-media-slider">
             <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80" alt="Amanoi Resort" class="hotel-slide-img">
             <span class="hotel-rating-badge">★ 4.98 • Đẳng Cấp Thế Giới</span>
-            <div class="hotel-slider-dots">
-              <span class="dot active"></span>
-              <span class="dot"></span>
-              <span class="dot"></span>
-            </div>
           </div>
           <div class="hotel-body">
             <div class="hotel-location-tag">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              Vĩnh Hy, Ninh Thuận
+              <i class="fa-solid fa-location-dot"></i> Vĩnh Hy, Ninh Thuận
             </div>
             <h3 class="hotel-title">Amanoi Luxury Ocean Pavilion</h3>
             <div class="hotel-amenities">
-              <span class="amenity-item">🏊 Hồ bơi vô cực vách đá</span>
-              <span class="amenity-item">💆 Spa thủy trị liệu</span>
+              <span class="amenity-item">🏊 Hồ bơi vô cực</span>
+              <span class="amenity-item">💆 Spa trị liệu</span>
               <span class="amenity-item">🍷 Bữa tối riêng tư</span>
             </div>
             <div class="hotel-footer">
@@ -511,19 +441,10 @@
           <div class="hotel-media-slider">
             <img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80" alt="InterContinental Danang" class="hotel-slide-img">
             <span class="hotel-rating-badge">★ 4.95 • Top 1 Châu Á</span>
-            <div class="hotel-slider-dots">
-              <span class="dot active"></span>
-              <span class="dot"></span>
-              <span class="dot"></span>
-            </div>
           </div>
           <div class="hotel-body">
             <div class="hotel-location-tag">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              Bán Đảo Sơn Trà, Đà Nẵng
+              <i class="fa-solid fa-location-dot"></i> Bán Đảo Sơn Trà, Đà Nẵng
             </div>
             <h3 class="hotel-title">InterContinental Sun Peninsula Resort</h3>
             <div class="hotel-amenities">
@@ -551,12 +472,12 @@
         <div class="feature-card">
           <div class="feature-icon"><i class="fa-solid fa-calendar-check"></i></div>
           <h3>Đặt Tour Tức Thì</h3>
-          <p>Xác nhận đơn và giữ chỗ tự động trong 3 giây. Hủy linh hoạt trước ngày đi.</p>
+          <p>Xác nhận đơn và giữ chỗ tự động trong 3 giây. Hủy vé linh hoạt trước ngày đi.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon"><i class="fa-solid fa-route"></i></div>
           <h3>Lịch Trình Tỉ Mỉ</h3>
-          <p>Từng mốc giờ, địa danh, bản đồ GPS và dịch vụ ăn uống được chuẩn bị chi tiết.</p>
+          <p>Từng mốc giờ, địa danh, bản đồ và dịch vụ ăn uống được chuẩn bị chu đáo.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon"><i class="fa-solid fa-shield-heart"></i></div>
@@ -567,24 +488,18 @@
     </div>
   </section>
 
-  <!-- ================= MODAL: CHI TIẾT TOUR (BENTO GALLERY VIEW) ================= -->
+  <!-- ================= MODAL: CHI TIẾT TOUR ================= -->
   <div class="modal-backdrop" id="tourDetailModal">
     <div class="modal-card modal-editorial-detail">
       <div class="detail-top-nav">
         <div class="detail-nav-left">
           <span class="modal-badge" id="modalTourCategory">Adventure</span>
           <span class="detail-verified-badge">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            Đã Kiểm Định Chất Lượng
+            <i class="fa-solid fa-check"></i> Đã Kiểm Định Chất Lượng
           </span>
         </div>
         <button type="button" class="modal-close" onclick="closeModal('tourDetailModal')" aria-label="Đóng chi tiết">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
@@ -601,55 +516,40 @@
           <div class="bento-item bento-sub-2">
             <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80" alt="Resort relax" class="bento-img">
             <div class="bento-view-more">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                <polyline points="21 15 16 10 5 21"></polyline>
-              </svg>
+              <i class="fa-solid fa-images"></i>
               <span>+18 Ảnh Bổ Sung</span>
             </div>
           </div>
         </div>
 
-        <!-- Two-column editorial layout -->
+        <!-- Detail Grid Layout -->
         <div class="detail-editorial-layout">
           <div class="detail-left-column">
             <h2 class="detail-main-title" id="modalTourTitle">Tên Tour</h2>
 
             <div class="detail-specs-strip">
               <div class="spec-pill">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
+                <i class="fa-solid fa-location-dot"></i>
                 <span id="modalTourDestination">Vịnh Hạ Long, Quảng Ninh</span>
               </div>
               <div class="spec-pill">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                </svg>
+                <i class="fa-solid fa-users"></i>
                 <span id="modalTourMaxPax">Tối đa 30 khách</span>
               </div>
               <div class="spec-pill">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                  <line x1="16" y1="2" x2="16" y2="6"></line>
-                  <line x1="8" y1="2" x2="8" y2="6"></line>
-                  <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
+                <i class="fa-solid fa-calendar-days"></i>
                 <span id="modalTourDates">15/04/2027 → 18/04/2027</span>
               </div>
             </div>
 
             <div class="detail-section-block">
-              <h3 class="detail-block-title">Khái Quát Trải Nghiệm</h3>
+              <h3 class="detail-block-title">Khái Quát Hành Trình</h3>
               <p class="detail-description-prose" id="modalTourDesc">Mô tả chi tiết tour...</p>
             </div>
 
             <div class="detail-section-block">
               <h3 class="detail-block-title">
-                <span class="block-title-icon">✦</span>
+                <i class="fa-solid fa-list-check text-cyan"></i>
                 Lịch Trình Chi Tiết Các Ngày
               </h3>
               <div class="itinerary-timeline" id="modalTourItinerary">
@@ -659,7 +559,7 @@
 
             <!-- Review Rating Bars -->
             <div class="detail-section-block reviews-block">
-              <h3 class="detail-block-title">Đánh Giá Từ Du Khách Thực Tế (4.96 ★)</h3>
+              <h3 class="detail-block-title">Đánh Giá Từ Khách Hàng (4.96 ★)</h3>
               <div class="rating-bars-grid">
                 <div class="rating-bar-item">
                   <div class="bar-labels">
@@ -677,7 +577,7 @@
                 </div>
                 <div class="rating-bar-item">
                   <div class="bar-labels">
-                    <span>Ẩm thực bản địa</span>
+                    <span>Ẩm thực địa phương</span>
                     <strong>96%</strong>
                   </div>
                   <div class="bar-track"><div class="bar-fill" style="width: 96%;"></div></div>
@@ -705,40 +605,18 @@
               </div>
 
               <ul class="sticky-perks-list">
-                <li>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  <span>Đã bao gồm VAT & toàn bộ vé tham quan</span>
-                </li>
-                <li>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  <span>Bảo hiểm du lịch quốc tế $50,000</span>
-                </li>
-                <li>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  <span>Hủy miễn phí trước 48 giờ khởi hành</span>
-                </li>
+                <li><i class="fa-solid fa-check text-green"></i> Đã bao gồm VAT & toàn bộ vé tham quan</li>
+                <li><i class="fa-solid fa-check text-green"></i> Bảo hiểm du lịch quốc tế $50,000</li>
+                <li><i class="fa-solid fa-check text-green"></i> Hủy miễn phí trước 48 giờ khởi hành</li>
               </ul>
 
               <button type="button" class="btn btn-sticky-book" id="modalBookNowBtn">
+                <i class="fa-solid fa-bolt"></i>
                 <span>Tiến Hành Đặt Chỗ</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                  <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
               </button>
 
               <span class="sticky-security-notice">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-                Bảo mật mã hóa thanh toán 256-bit SSL
+                <i class="fa-solid fa-lock"></i> Bảo mật thanh toán an toàn 256-bit SSL
               </span>
             </div>
           </aside>
@@ -754,18 +632,11 @@
         <div class="checkout-tour-badge">
           <h4 id="bookModalTourTitle">Vịnh Hạ Long 3 Ngày 2 Đêm</h4>
           <span id="bookModalTourDest">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-            Vịnh Hạ Long, Quảng Ninh
+            <i class="fa-solid fa-location-dot"></i> Vịnh Hạ Long, Quảng Ninh
           </span>
         </div>
         <button type="button" class="modal-close" onclick="closeModal('bookingModal')" aria-label="Đóng">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
@@ -817,10 +688,10 @@
               </div>
             </div>
 
-            <!-- Yacht Seat Map -->
+            <!-- Seat Map -->
             <div class="seatmap-section">
               <div class="seatmap-header">
-                <span class="seatmap-title">Chọn Vị Trí Boong Tàu / Ghế Ngồi</span>
+                <span class="seatmap-title">Chọn Vị Trí Boong Tàu / Chỗ Ngồi</span>
                 <div class="seat-legend">
                   <span class="legend-item"><span class="seat-sample seat-avail"></span> Trống</span>
                   <span class="legend-item"><span class="seat-sample seat-sel"></span> Đang Chọn</span>
@@ -842,12 +713,9 @@
 
             <div class="step-nav-bar">
               <div></div>
-              <button type="button" class="btn btn-coral" onclick="goToCheckoutStep(2)">
+              <button type="button" class="btn btn-search-primary" onclick="goToCheckoutStep(2)">
                 <span>Tiếp Tục Điền Thông Tin</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                  <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
+                <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
           </div>
@@ -872,7 +740,7 @@
 
             <div class="floating-group">
               <textarea id="bookSpecialRequests" class="floating-input floating-textarea" rows="2" placeholder=" "></textarea>
-              <label for="bookSpecialRequests" class="floating-label">Yêu Cầu Đặc Biệt (Ví dụ: Phòng ban công, ăn chay...)</label>
+              <label for="bookSpecialRequests" class="floating-label">Yêu Cầu Đặc Biệt (Ăn kiêng, phòng ban công...)</label>
             </div>
 
             <div class="checkout-total-strip">
@@ -883,9 +751,7 @@
               <div class="step-nav-bar-row">
                 <button type="button" class="btn btn-ghost-dark" onclick="goToCheckoutStep(1)">Quay Lại</button>
                 <button type="submit" class="btn btn-search-primary" id="btnSubmitBooking">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
+                  <i class="fa-solid fa-check"></i>
                   <span>Xác Nhận Giữ Chỗ</span>
                 </button>
               </div>
@@ -896,16 +762,14 @@
     </div>
   </div>
 
-  <!-- ================= MODAL: E-TICKET SUCCESS (CONFETTI CELEBRATION) ================= -->
+  <!-- ================= MODAL: E-TICKET SUCCESS ================= -->
   <div class="modal-backdrop" id="successTicketModal">
     <div class="modal-card modal-ticket-success">
       <canvas id="confettiCanvas"></canvas>
       
       <div class="success-top-celebration">
         <div class="celebration-icon">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
+          <i class="fa-solid fa-check"></i>
         </div>
         <h2 class="celebration-title">Đặt Vé Thành Công!</h2>
         <p class="celebration-sub">Vé điện tử chính thức đã được gửi tới email của quý khách.</p>
@@ -915,7 +779,7 @@
       <div class="e-ticket-card">
         <div class="ticket-header-strip">
           <div class="ticket-brand">
-            <span class="ticket-dot">✦</span>
+            <i class="fa-solid fa-compass text-coral"></i>
             <strong>WANDERLUST OFFICIAL E-TICKET</strong>
           </div>
           <span class="ticket-code-tag" id="ticketCodeDisplay">BK-20270415-99A1</span>
@@ -954,14 +818,9 @@
 
         <div class="ticket-actions-row">
           <button type="button" class="btn btn-ghost-dark" onclick="window.print()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 6 2 18 2 18 9"></polyline>
-              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-              <rect x="6" y="14" width="12" height="8"></rect>
-            </svg>
-            In Vé E-Ticket
+            <i class="fa-solid fa-print"></i> In Vé E-Ticket
           </button>
-          <button type="button" class="btn btn-coral" onclick="closeModal('successTicketModal'); openMyBookings();">
+          <button type="button" class="btn btn-search-primary" onclick="closeModal('successTicketModal'); openMyBookings();">
             Xem Đơn Của Tôi
           </button>
         </div>
@@ -989,7 +848,7 @@
             <label for="loginPassword">Mật khẩu</label>
             <input type="password" id="loginPassword" required placeholder="••••••••" value="Admin@123456">
           </div>
-          <button type="submit" class="btn btn-coral btn-block">Đăng Nhập Ngay</button>
+          <button type="submit" class="btn btn-search-primary btn-block">Đăng Nhập Ngay</button>
           
           <div class="demo-login-box">
             <span>Tài khoản thử nghiệm sẵn có:</span>
@@ -1010,17 +869,17 @@
             <label for="regPassword">Mật khẩu (tối thiểu 8 ký tự) *</label>
             <input type="password" id="regPassword" minlength="8" required placeholder="Password@123">
           </div>
-          <button type="submit" class="btn btn-coral btn-block">Tạo Tài Khoản</button>
+          <button type="submit" class="btn btn-search-primary btn-block">Tạo Tài Khoản</button>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- ================= MODAL: ĐƠN CỦA TÔI (MY BOOKINGS) ================= -->
+  <!-- ================= MODAL: ĐƠN CỦA TÔI ================= -->
   <div class="modal-backdrop" id="myBookingsModal">
     <div class="modal-card modal-lg">
       <div class="modal-header">
-        <h3 class="modal-heading"><i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Đơn Đặt Tour</h3>
+        <h3 class="modal-heading"><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Lịch Sử Đơn Đặt Tour</h3>
         <button type="button" class="modal-close" onclick="closeModal('myBookingsModal')"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body">
@@ -1037,27 +896,23 @@
   <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <!-- ================= EDITORIAL RICH FOOTER ================= -->
-  <footer class="editorial-footer">
+  <!-- ================= FOOTER ================= -->
+  <footer class="site-footer">
     <div class="container">
-      <div class="footer-wordmark-wrap">
-        <span class="footer-huge-wordmark">WANDERLUST</span>
-      </div>
-
       <div class="footer-columns-grid">
         <div class="footer-col col-brand">
           <div class="footer-logo">
-            <span class="footer-compass">✦</span>
-            <strong>WANDERLUST TRAVEL</strong>
+            <span class="logo-compass"><i class="fa-solid fa-compass"></i></span>
+            <strong>WANDERLUST</strong>
           </div>
           <p class="footer-about-text">
-            Định hình phong cách nghỉ dưỡng thượng lưu và hành trình khám phá di sản Việt Nam qua chuẩn mực 5 sao quốc tế.
+            Nền tảng đặt tour du lịch cao cấp, mang đến những hành trình khám phá di sản và nghỉ dưỡng 5 sao chuẩn mực tại Việt Nam.
           </p>
           <div class="footer-social-links">
-            <a href="#" aria-label="Instagram">IG</a>
-            <a href="#" aria-label="Facebook">FB</a>
-            <a href="#" aria-label="Youtube">YT</a>
-            <a href="#" aria-label="LinkedIn">IN</a>
+            <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#" aria-label="Youtube"><i class="fa-brands fa-youtube"></i></a>
+            <a href="#" aria-label="Tiktok"><i class="fa-brands fa-tiktok"></i></a>
           </div>
         </div>
 
@@ -1076,7 +931,7 @@
           <h4 class="footer-col-title">Trải Nghiệm Độc Bản</h4>
           <ul class="footer-links-list">
             <li><a href="#">Du Thuyền Ngắm Hoàng Hôn</a></li>
-            <li><a href="#">Khu Nghỉ Dưỡng Vách Biển</a></li>
+            <li><a href="#">Resort Biệt Lập Vách Biển</a></li>
             <li><a href="#">Vé Máy Bay Thương Gia</a></li>
             <li><a href="#">Bảo Hiểm Du Lịch Quốc Tế</a></li>
             <li><a href="#">Trợ Lý Du Lịch AI 24/7</a></li>
@@ -1084,15 +939,12 @@
         </div>
 
         <div class="footer-col col-newsletter">
-          <h4 class="footer-col-title">Bản Tin Hành Trình</h4>
-          <p class="newsletter-sub">Nhận các ưu đãi giới hạn và cẩm nang du lịch độc bản mỗi tháng.</p>
+          <h4 class="footer-col-title">Nhận Ưu Đãi Mới Nhất</h4>
+          <p class="newsletter-sub">Đăng ký để nhận cẩm nang du lịch và voucher giảm giá 15% cho chuyến đi đầu tiên.</p>
           <form class="newsletter-form" onsubmit="event.preventDefault(); showToast('Cảm ơn bạn đã đăng ký nhận bản tin!');">
-            <input type="email" placeholder="Nhập địa chỉ email của bạn..." required>
+            <input type="email" placeholder="Nhập email của bạn..." required>
             <button type="submit" class="btn-nl-submit" aria-label="Gửi">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-                <polyline points="12 5 19 12 12 19"></polyline>
-              </svg>
+              <i class="fa-solid fa-arrow-right"></i>
             </button>
           </form>
         </div>
@@ -1103,43 +955,33 @@
         <div class="bottom-legal-links">
           <a href="#">Điều khoản bảo mật</a>
           <a href="#">Chính sách hoàn hủy</a>
-          <a href="#">Giấy phép lữ hành quốc tế</a>
+          <a href="#">Giấy phép lữ hành</a>
         </div>
       </div>
     </div>
   </footer>
 
-  <!-- Floating Mobile Bottom Navigation (<768px) -->
+  <!-- Floating Mobile Bottom Nav -->
   <nav class="mobile-bottom-nav">
     <a href="#tours-section" class="mobile-nav-item active">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-      </svg>
+      <i class="fa-solid fa-compass"></i>
       <span>Khám Phá</span>
     </a>
     <a href="#searchWidgetWrapper" class="mobile-nav-item">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
+      <i class="fa-solid fa-magnifying-glass"></i>
       <span>Tìm Kiếm</span>
     </a>
     <a href="javascript:void(0)" onclick="openMyBookings()" class="mobile-nav-item">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path>
-      </svg>
+      <i class="fa-solid fa-ticket"></i>
       <span>Đơn Của Tôi</span>
     </a>
     <a href="javascript:void(0)" onclick="openModal('authModal')" class="mobile-nav-item">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-      </svg>
+      <i class="fa-solid fa-user"></i>
       <span>Tài Khoản</span>
     </a>
   </nav>
 
   <!-- App Javascript -->
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=fresh_20261005_v5"></script>
 </body>
 </html>
