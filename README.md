@@ -3,7 +3,7 @@
 > **Hệ Thống Đặt Tour & Quản Lý Du Lịch Tích Hợp AI & Giao Diện Hiện Đại 5 Sao**
 
 **Tác giả:** Đỗ Văn Cung  
-**Kiến trúc:** Clean Architecture (FastAPI + MySQL/PostgreSQL + Stored Procedures)  
+**Kiến trúc:** Clean Architecture (FastAPI + MySQL 8.0 + Stored Procedures)  
 **Giao diện:** Modern High-End Travel UI (Traveloka / Airbnb Style - Bright & Vibrant)  
 **Trạng thái hiện tại:** **Hoàn thiện Core Auth, Tour Catalog, Booking Engine (Chống Race Condition) & Giao Diện Người Dùng (UI/UX) ✅**
 
@@ -32,15 +32,15 @@ Application Layer (BookingService, TourService, AuthService, DTOs)
        ↓
 Domain Layer (Entities, Value Objects, Business Enums)
        ↓
-Infrastructure Layer (MySQL/PostgreSQL Connection Pool, Repositories, Stored Procedures)
+Infrastructure Layer (MySQL 8.0 Connection Pool, Repositories, Stored Procedures)
 ```
 
 ---
 
 ## 🚀 Hướng Dẫn Khởi Chạy Dự Án (Quick Start)
 
-### 1. Cấu hình Cơ sở dữ liệu (MySQL / PostgreSQL)
-Chạy lần lượt 4 file SQL trong thư mục `database/` theo thứ tự:
+### 1. Cấu hình Cơ sở dữ liệu MySQL 8.0
+Chạy lần lượt 4 file SQL trong thư mục `database/` vào MySQL 8.0 theo thứ tự:
 
 ```bash
 database/
@@ -113,7 +113,7 @@ PYTHONUTF8=1 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reloa
 |-----------|-----------|
 | **Backend Framework** | FastAPI 0.115 (Python 3.11+) |
 | **Giao diện (Frontend)** | Vanilla HTML5, CSS3 Custom Properties, Modern JavaScript (ES6+), FontAwesome 6, Google Fonts (Outfit & Plus Jakarta Sans) |
-| **Cơ sở dữ liệu** | MySQL 8.0 / PostgreSQL 16 (Async Execution, Stored Procedures, Connection Pool) |
+| **Cơ sở dữ liệu** | MySQL 8.0 (Async Execution, Stored Procedures, Connection Pool) |
 | **Bảo mật** | JWT Authentication, Passlib (Bcrypt), Security Headers Middleware (CSP, HSTS) |
 | **Logging & Monitoring** | Loguru + Timing & Request ID Middleware |
 
