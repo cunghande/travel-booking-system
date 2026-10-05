@@ -9,12 +9,12 @@ Tài liệu này hướng dẫn chi tiết các bước khởi động và chạ
 Mở terminal **PowerShell** tại thư mục dự án `d:\Code\Travel-Booking-System` và copy/paste lệnh sau (đã sửa lỗi UTF-8):
 
 ```powershell
-$env:PYTHONUTF8=1; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+$env:PYTHONUTF8=1; & "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-> **Lưu ý:** Không copy ký tự `>` ở đầu câu lệnh. Nếu câu lệnh trên báo lỗi không tìm thấy `python`, hãy dùng:
+> **Lưu ý:** Bạn có thể dùng lệnh rút gọn nếu `python` đã nhận đường dẫn global:
 > ```powershell
-> $env:PYTHONUTF8=1; .\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+> $env:PYTHONUTF8=1; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 > ```
 
 ---
