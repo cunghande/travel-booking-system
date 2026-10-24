@@ -29,7 +29,7 @@ async def init_db_pool():
         autocommit=True,
         cursorclass=aiomysql.DictCursor,
     )
-    print(f"[AUTH SERVICE] ✅ Đã kết nối MySQL: {MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}")
+    print(f"[AUTH SERVICE] [OK] Da ket noi MySQL: {MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}")
 
 async def close_db_pool():
     # đóng toàn bộ kết nối MYSQL khi auth service tắt
