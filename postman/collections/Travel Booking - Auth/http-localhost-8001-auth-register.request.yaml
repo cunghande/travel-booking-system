@@ -1,0 +1,19 @@
+$kind: http-request
+name: http://localhost:8001/auth/register
+description: ""
+url: http://localhost:8001/auth/login
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"email\": \"khachhang1@gmail.com\",\r
+
+    \  \"password\": \"12345678\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0833}}"
+order: 4323038254450143

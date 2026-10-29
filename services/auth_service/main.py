@@ -1,4 +1,9 @@
 # khai báo thư viện 
+import sys
+from pathlib import Path
+# Thêm thư mục gốc vào danh sách tìm kiếm của Python
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status

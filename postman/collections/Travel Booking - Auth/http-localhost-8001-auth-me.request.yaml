@@ -1,0 +1,10 @@
+$kind: http-request
+name: http://localhost:8001/auth/me
+description: ""
+url: http://localhost:8001/auth/me
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5N2RhODE0Mi01ZmU5LTQyNzgtOGExZi0zYTZkNmQzNDZlMTkiLCJyb2xlIjoiQ1VTVE9NRVIiLCJlbWFpbCI6ImtoYWNoaGFuZzFAZ21haWwuY29tIiwidHlwZSIOH0E
+order: 4440964358809853

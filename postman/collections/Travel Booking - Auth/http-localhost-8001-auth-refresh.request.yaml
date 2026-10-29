@@ -1,0 +1,13 @@
+$kind: http-request
+name: http://localhost:8001/auth/refresh
+description: ""
+url: http://localhost:8001/auth/refresh
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"refresh_token\": \"{{json_web_token_036q}}\"\r
+
+    }\r\n"
+order: 4483661843662129
