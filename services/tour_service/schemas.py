@@ -40,6 +40,54 @@ class ItineraryResponse(ItineraryBase):
 class TourCreateRequest(BaseModel):
     tour_code: str = Field(..., max_length =50, description ="Mã tour")
     title: str = Field(..., max_length = 500, description = "Tên tour du lịch")
-    
-    
-    
+    description: Optional[str] = Field(None, description ="Mô tả tổng quan") 
+    category: Optional[str] = Field(None, description ="Danh mục") 
+    destination: str = Field(..., max_length =255, description ="Điểm đến chính")
+    base_price_adult: float = Field(...,gt =0, description =" Giá vé người lớn")
+    base_price_child: float = Field(0.0, ge = 0,description=" Giá vé trẻ em")
+    max_participants: int =Field(20, ge =1, description ="số khách tối đa")
+    start_date: date = Field(..., description ="Ngày bắt đầu")
+    end_date: date = Field(..., description ="Ngày kết thúc")
+    itineraries: List[ItineraryCreate] = Field(default_factory = list)
+
+# xây dựng class update tour
+class TourUpdateRequest(BaseModel):
+    title: Optional[str] =None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    destination: Optional[str] = None
+    base_price_adult: Optional[float] = None
+    base_price_child: Optional[float] = None
+    max_participants: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[str] = Field(None, description="DRAFT | PUBLISHED | ARCHIVED | CANCELLED")
+
+# dữ liệu trả về client
+class TourResponse(BaseModel):
+    id: str
+    tour_code: str
+    title: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    destination: str
+    base_price_adult: float
+    base_price_child: float
+    max_participants: int
+    available_slots: int
+    start_date: date
+    end_date: date
+    status: str
+    created_by: Optional[str] = None
+    itineraries: List[ItineraryResponse] = []
+    class Config:
+        from_attributes = True
+
+
+# danh sách tour phân trang
+class TourListResponse(BaseModel):
+    items: List[TourResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
