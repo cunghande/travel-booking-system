@@ -1,0 +1,9 @@
+$kind: http-request
+name: http://localhost:8002/tours
+description: ""
+url: http://localhost:8002/tours?page=1&size=5
+method: GET
+queryParams:
+  page: "1"
+  size: "5"
+order: 4000

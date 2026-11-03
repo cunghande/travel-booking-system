@@ -1,0 +1,9 @@
+$kind: http-request
+name: http://localhost:8001/auth/login
+description: ""
+url: http://localhost:8001/auth/login
+method: POST
+body:
+  type: json
+  content: "{ \"email\": \"admin@travel.com\", \"password\": \"admin123\" }\r\n"
+order: 4483661843663129

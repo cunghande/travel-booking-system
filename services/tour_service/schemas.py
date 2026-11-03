@@ -1,6 +1,6 @@
-from datetime import date, time 
-from typing import List, Optional 
-from pydantic import BaseModel, Field
+from datetime import date, time, timedelta
+from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
 
 
 # 1 xây dựng class activity hoạt động trong ngày
@@ -9,7 +9,16 @@ class ActivityBase(BaseModel):
     place_name: str = Field(..., max_length =255, description = "tên địa điểm")
     description: Optional[str] = Field(None, description = "mô tả chi tiết")
     latitude: Optional[float] = Field(None, description = " vĩ độ bản đồ")
-    longitude: Optional[float] = Field(None, description = "kinh độ bản đồ")
+    longitude: Optional[float] = Field(None, description="kinh độ bản đồ")
+
+    @field_validator("time_slot", mode="before")
+    @classmethod
+    def convert_timedelta(cls, v):
+        # MySQL trả về TIME dưới dạng timedelta, cần chuyển sang time
+        if isinstance(v, timedelta):
+            total = int(v.total_seconds())
+            return time(total // 3600, (total % 3600) // 60, total % 60)
+        return v
 
 
 class ActivityCreate(ActivityBase):

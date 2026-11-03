@@ -1,0 +1,8 @@
+$kind: http-request
+name: http://localhost:8002/tours
+description: ""
+url: http://localhost:8002/tours?destination=Đà Lạt
+method: GET
+queryParams:
+  destination: Đà Lạt
+order: 3000

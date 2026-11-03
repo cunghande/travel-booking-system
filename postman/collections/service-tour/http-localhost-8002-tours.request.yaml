@@ -1,0 +1,71 @@
+$kind: http-request
+name: http://localhost:8002/tours
+description: ""
+url: http://localhost:8002/tours
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"tour_code\": \"TOUR-2026-002\",\r
+
+    \  \"title\": \"Tour Đà Lạt 3 Ngày 2 Đêm\",\r
+
+    \  \"description\": \"Khám phá thành phố ngàn hoa\",\r
+
+    \  \"category\": \"Nghỉ dưỡng\",\r
+
+    \  \"destination\": \"Đà Lạt, Lâm Đồng\",\r
+
+    \  \"base_price_adult\": 2500000,\r
+
+    \  \"base_price_child\": 1500000,\r
+
+    \  \"max_participants\": 20,\r
+
+    \  \"start_date\": \"2026-12-01\",\r
+
+    \  \"end_date\": \"2026-12-03\",\r
+
+    \  \"itineraries\": [\r
+
+    \    {\r
+
+    \      \"day_number\": 1,\r
+
+    \      \"title\": \"Hà Nội - Đà Lạt\",\r
+
+    \      \"activities\": [\r
+
+    \        { \"time_slot\": \"06:00:00\", \"place_name\": \"Sân bay Nội Bài\", \"description\": \"Tập trung tại sân bay\" },\r
+
+    \        { \"time_slot\": \"14:00:00\", \"place_name\": \"Hồ Xuân Hương\", \"description\": \"Tham quan và chụp ảnh\" }\r
+
+    \      ]\r
+
+    \    },\r
+
+    \    {\r
+
+    \      \"day_number\": 2,\r
+
+    \      \"title\": \"Khám phá Đà Lạt\",\r
+
+    \      \"activities\": [\r
+
+    \        { \"time_slot\": \"08:00:00\", \"place_name\": \"Thác Datanla\", \"description\": \"Trekking và khám phá\" },\r
+
+    \        { \"time_slot\": \"14:00:00\", \"place_name\": \"Đồi Chè Cầu Đất\", \"description\": \"Ngắm cảnh đồi chè\" }\r
+
+    \      ]\r
+
+    \    }\r
+
+    \  ]\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_13qm}}"
+order: 1000

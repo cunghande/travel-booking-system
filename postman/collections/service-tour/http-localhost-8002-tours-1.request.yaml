@@ -1,0 +1,8 @@
+$kind: http-request
+name: http://localhost:8002/tours
+description: ""
+url: http://localhost:8002/tours?status=DRAFT
+method: GET
+queryParams:
+  status: DRAFT
+order: 2000

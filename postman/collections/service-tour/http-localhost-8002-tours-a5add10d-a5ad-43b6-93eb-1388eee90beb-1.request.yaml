@@ -1,0 +1,15 @@
+$kind: http-request
+name: http://localhost:8002/tours/a5add10d-a5ad-43b6-93eb-1388eee90beb
+description: ""
+url: http://localhost:8002/tours/a5add10d-a5ad-43b6-93eb-1388eee90beb
+method: PUT
+body:
+  type: json
+  content: "{\r
+
+    \  \"status\": \"PUBLISHED\",\r
+
+    \  \"base_price_adult\": 2800000\r
+
+    }\r\n"
+order: 6000
